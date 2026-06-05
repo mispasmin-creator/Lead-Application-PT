@@ -1,7 +1,7 @@
 import React from 'react';
 import {
   Search, Calendar, ExternalLink, CheckCircle2,
-  Hourglass, Clock, Filter
+  Hourglass, Clock, Filter, Activity
 } from 'lucide-react';
 import { Lead, ActiveStepId } from '../types';
 
@@ -20,16 +20,20 @@ interface LogEntry {
   remarks: string;
 }
 
-const STEP_BADGE: Record<ActiveStepId, string> = {
-  1: 'bg-purple-50 text-purple-700 border-purple-200',
-  2: 'bg-cyan-50 text-cyan-700 border-cyan-200',
-  3: 'bg-amber-50 text-amber-700 border-amber-200',
-  4: 'bg-rose-50 text-rose-700 border-rose-200',
-  5: 'bg-green-50 text-green-700 border-green-200',
+const STEP_BADGE: Record<ActiveStepId, { cls: string; color: string }> = {
+  1: { cls: 'bg-purple-100 text-purple-700 border-purple-200 dark:bg-purple-900/30 dark:text-purple-400 dark:border-purple-700',    color: '#a855f7' },
+  2: { cls: 'bg-cyan-100 text-cyan-700 border-cyan-200 dark:bg-cyan-900/30 dark:text-cyan-400 dark:border-cyan-700',               color: '#06b6d4' },
+  3: { cls: 'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-700',          color: '#f59e0b' },
+  4: { cls: 'bg-rose-100 text-rose-700 border-rose-200 dark:bg-rose-900/30 dark:text-rose-400 dark:border-rose-700',                color: '#f43f5e' },
+  5: { cls: 'bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-700', color: '#10b981' },
+};
+
+const STEP_NAMES: Record<ActiveStepId, string> = {
+  1: '2D Design', 2: 'RFQ Completed', 3: 'Quotation', 4: 'Request 3D', 5: '3D Design',
 };
 
 export default function HistoryLog({ leads }: HistoryLogProps) {
-  const [search, setSearch] = React.useState('');
+  const [search,       setSearch]       = React.useState('');
   const [selectedStep, setSelectedStep] = React.useState<string>('all');
 
   const logEntries: LogEntry[] = React.useMemo(() => {
@@ -57,49 +61,49 @@ export default function HistoryLog({ leads }: HistoryLogProps) {
   const pendingInFlight = leads.filter(l => [1,2,3,4,5].some(i => l[`planned${i}` as keyof Lead] && !l[`actual${i}` as keyof Lead])).length;
 
   return (
-    <div className="space-y-5 animate-fade-in">
+    <div className="space-y-6 animate-fade-in pb-8">
 
       {/* Header */}
       <div>
-        <h1 className="text-xl font-bold text-gray-900">Activity Log</h1>
-        <p className="text-sm text-gray-500 mt-0.5">Completed milestones sorted by completion date</p>
+        <h1 className="text-2xl font-bold tracking-tight" style={{ color: 'var(--text)' }}>Activity Log</h1>
+        <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>Completed milestones sorted by completion date</p>
       </div>
 
-      {/* Summary */}
+      {/* Summary cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {[
-          { icon: CheckCircle2, label: 'Total Milestones', value: logEntries.length, color: 'text-green-600 bg-green-50' },
-          { icon: CheckCircle2, label: 'Fully Completed',  value: completedLeads,    color: 'text-blue-600 bg-blue-50' },
-          { icon: Hourglass,    label: 'Pending In-Flight', value: pendingInFlight,   color: 'text-amber-600 bg-amber-50' },
-        ].map(({ icon: Icon, label, value, color }) => (
-          <div key={label} className="bg-white rounded-xl border border-gray-200 p-4 flex items-center gap-3">
-            <div className={`p-2 rounded-lg ${color}`}>
-              <Icon className="w-4 h-4" />
+          { icon: Activity,      label: 'Total Milestones',  value: logEntries.length, bg: 'bg-emerald-50 dark:bg-emerald-900/20', iconColor: 'text-emerald-600 dark:text-emerald-400' },
+          { icon: CheckCircle2,  label: 'Fully Completed',   value: completedLeads,    bg: 'bg-indigo-50 dark:bg-indigo-900/20',   iconColor: 'text-indigo-600 dark:text-indigo-400' },
+          { icon: Hourglass,     label: 'Pending In-Flight', value: pendingInFlight,   bg: 'bg-amber-50 dark:bg-amber-900/20',     iconColor: 'text-amber-600 dark:text-amber-400' },
+        ].map(({ icon: Icon, label, value, bg, iconColor }) => (
+          <div key={label} className="rounded-2xl border p-5 flex items-center gap-4 transition-all hover:shadow-md"
+            style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
+            <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${bg}`}>
+              <Icon className={`w-5 h-5 ${iconColor}`} />
             </div>
             <div>
-              <p className="text-xs text-gray-500 font-medium">{label}</p>
-              <p className="text-xl font-bold text-gray-900 mt-0.5">{value}</p>
+              <p className="text-xs font-medium" style={{ color: 'var(--text-subtle)' }}>{label}</p>
+              <p className="text-2xl font-bold mt-0.5" style={{ color: 'var(--text)' }}>{value}</p>
             </div>
           </div>
         ))}
       </div>
 
       {/* Filters */}
-      <div className="bg-white rounded-xl border border-gray-200 p-3 flex flex-col sm:flex-row gap-2">
+      <div className="rounded-2xl border p-4 flex flex-col sm:flex-row gap-3"
+        style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
         <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
-          <input
-            type="text" placeholder="Search by client, lead no, or remarks…"
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: 'var(--text-subtle)' }} />
+          <input type="text" placeholder="Search by client, lead no, or remarks…"
             value={search} onChange={e => setSearch(e.target.value)}
-            className="w-full h-9 pl-9 pr-3 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-100 focus:border-green-500 transition-colors"
-          />
+            className="w-full h-10 pl-10 pr-3 text-sm rounded-xl border focus:outline-none focus:ring-2 focus:ring-emerald-100 dark:focus:ring-emerald-900/30 focus:border-emerald-400 transition-all"
+            style={{ background: 'var(--bg-elevated)', borderColor: 'var(--border)', color: 'var(--text)' }} />
         </div>
         <div className="relative flex items-center shrink-0">
-          <Filter className="absolute left-3 w-3.5 h-3.5 text-gray-400 pointer-events-none" />
-          <select
-            value={selectedStep} onChange={e => setSelectedStep(e.target.value)}
-            className="h-9 pl-9 pr-8 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-green-100 focus:border-green-500"
-          >
+          <Filter className="absolute left-3 w-4 h-4 pointer-events-none" style={{ color: 'var(--text-subtle)' }} />
+          <select value={selectedStep} onChange={e => setSelectedStep(e.target.value)}
+            className="h-10 pl-10 pr-8 text-sm rounded-xl border focus:outline-none focus:ring-2 focus:ring-emerald-100 dark:focus:ring-emerald-900/30 appearance-none cursor-pointer"
+            style={{ background: 'var(--bg-elevated)', borderColor: 'var(--border)', color: 'var(--text)' }}>
             <option value="all">All Steps</option>
             <option value="1">S1: 2D Design</option>
             <option value="2">S2: RFQ</option>
@@ -111,59 +115,68 @@ export default function HistoryLog({ leads }: HistoryLogProps) {
       </div>
 
       {/* Log list */}
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+      <div className="rounded-2xl border overflow-hidden" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
         {filtered.length === 0 ? (
-          <div className="p-10 text-center">
-            <Clock className="w-8 h-8 text-gray-200 mx-auto mb-2" />
-            <p className="text-sm font-medium text-gray-400">No records found</p>
-            <p className="text-xs text-gray-300 mt-0.5">Try adjusting your search or filter</p>
+          <div className="p-12 text-center">
+            <div className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-4" style={{ background: 'var(--bg-elevated)' }}>
+              <Clock className="w-7 h-7" style={{ color: 'var(--text-subtle)' }} />
+            </div>
+            <p className="text-sm font-medium" style={{ color: 'var(--text-muted)' }}>No records found</p>
+            <p className="text-xs mt-1" style={{ color: 'var(--text-subtle)' }}>Try adjusting your search or filter</p>
           </div>
         ) : (
-          <div className="divide-y divide-gray-100">
-            {filtered.map((entry, index) => (
-              <div key={`${entry.leadNo}-${entry.stepId}-${index}`}
-                className="px-4 py-4 flex flex-col md:flex-row md:items-start gap-3 hover:bg-gray-50 transition-colors">
+          <div>
+            {filtered.map((entry, index) => {
+              const badge = STEP_BADGE[entry.stepId];
+              return (
+                <div key={`${entry.leadNo}-${entry.stepId}-${index}`}
+                  className="px-5 py-4 flex flex-col md:flex-row md:items-start gap-4 border-b transition-colors hover:bg-emerald-50/20 dark:hover:bg-emerald-900/10"
+                  style={{ borderColor: 'var(--border-subtle)' }}>
 
-                {/* Left: timeline dot + info */}
-                <div className="flex items-start gap-3 flex-1 min-w-0">
-                  <div className="flex flex-col items-center mt-1 shrink-0">
-                    <div className="w-2 h-2 rounded-full bg-green-500 ring-2 ring-green-100" />
-                    {index < filtered.length - 1 && <div className="w-px h-8 bg-gray-200 mt-1" />}
-                  </div>
-
-                  <div className="flex-1 min-w-0">
-                    <div className="flex flex-wrap items-center gap-2 mb-1">
-                      <span className="font-mono text-xs bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded font-semibold">
-                        {entry.leadNo}
-                      </span>
-                      <span className={`text-xs font-semibold px-2 py-0.5 rounded-full border ${STEP_BADGE[entry.stepId]}`}>
-                        {entry.stepName}
-                      </span>
-                      <span className="text-xs font-medium text-green-700 bg-green-50 px-2 py-0.5 rounded-full border border-green-200 flex items-center gap-1">
-                        <CheckCircle2 className="w-3 h-3" /> {entry.statusText}
-                      </span>
+                  {/* Timeline dot */}
+                  <div className="flex items-start gap-4 flex-1 min-w-0">
+                    <div className="flex flex-col items-center mt-1 shrink-0">
+                      <div className="w-2.5 h-2.5 rounded-full ring-2 ring-offset-2" style={{ background: badge.color, ringColor: badge.color + '33', ringOffsetColor: 'var(--bg-card)' }} />
+                      {index < filtered.length - 1 && <div className="w-px flex-1 min-h-[24px] mt-1.5" style={{ background: 'var(--border)' }} />}
                     </div>
-                    <p className="text-sm font-semibold text-gray-900">{entry.clientName}</p>
-                    {entry.remarks && <p className="text-xs text-gray-500 mt-0.5 truncate max-w-lg">{entry.remarks}</p>}
-                    {entry.docLink && (
-                      <a href={entry.docLink} target="_blank" rel="noreferrer"
-                        className="inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 font-medium mt-1">
-                        <ExternalLink className="w-3 h-3" /> View attachment
-                      </a>
-                    )}
-                  </div>
-                </div>
 
-                {/* Right: timestamp */}
-                <div className="md:text-right shrink-0 md:ml-4">
-                  <div className="flex items-center md:justify-end gap-1 text-xs text-gray-400">
-                    <Calendar className="w-3 h-3" />
-                    <span>Completed</span>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex flex-wrap items-center gap-2 mb-1.5">
+                        <span className="font-mono text-xs px-2 py-0.5 rounded-lg font-semibold"
+                          style={{ background: 'var(--bg-elevated)', color: 'var(--text-muted)' }}>
+                          {entry.leadNo}
+                        </span>
+                        <span className={`text-xs font-semibold px-2.5 py-0.5 rounded-full border ${badge.cls}`}>
+                          {STEP_NAMES[entry.stepId]}
+                        </span>
+                        <span className="text-xs font-medium text-emerald-700 bg-emerald-50 dark:bg-emerald-900/30 dark:text-emerald-400 px-2 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-700 flex items-center gap-1">
+                          <CheckCircle2 className="w-3 h-3" /> {entry.statusText}
+                        </span>
+                      </div>
+                      <p className="text-sm font-semibold" style={{ color: 'var(--text)' }}>{entry.clientName}</p>
+                      {entry.remarks && (
+                        <p className="text-xs mt-1 truncate max-w-lg" style={{ color: 'var(--text-muted)' }}>{entry.remarks}</p>
+                      )}
+                      {entry.docLink && (
+                        <a href={entry.docLink} target="_blank" rel="noreferrer"
+                          className="inline-flex items-center gap-1 text-xs text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 font-medium mt-1.5 transition-colors">
+                          <ExternalLink className="w-3 h-3" /> View attachment
+                        </a>
+                      )}
+                    </div>
                   </div>
-                  <p className="text-xs font-mono font-semibold text-gray-700 mt-0.5">{entry.actualTime}</p>
+
+                  {/* Timestamp */}
+                  <div className="md:text-right shrink-0 md:ml-4 pl-6 md:pl-0">
+                    <div className="flex items-center md:justify-end gap-1 text-xs" style={{ color: 'var(--text-subtle)' }}>
+                      <Calendar className="w-3 h-3" />
+                      <span>Completed</span>
+                    </div>
+                    <p className="text-xs font-mono font-semibold mt-0.5" style={{ color: 'var(--text-muted)' }}>{entry.actualTime}</p>
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
