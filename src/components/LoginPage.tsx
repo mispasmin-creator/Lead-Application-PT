@@ -1,20 +1,34 @@
 import React from "react";
-import { AlertCircle, Eye, EyeOff, Loader2, Lock, LogIn, User } from "lucide-react";
+import { AlertCircle, Eye, EyeOff, ExternalLink, Loader2, Lock, LogIn, Settings2, User } from "lucide-react";
 import { SyncConfig } from "../types";
 
 interface LoginPageProps {
   syncConfig: SyncConfig;
   onLogin: (username: string, password: string) => Promise<void>;
+  onUpdateConfig: (config: SyncConfig) => void;
 }
 
-export default function LoginPage({ syncConfig, onLogin }: LoginPageProps) {
+export default function LoginPage({ syncConfig, onLogin, onUpdateConfig }: LoginPageProps) {
   const [username, setUsername] = React.useState("");
   const [password, setPassword] = React.useState("");
   const [showPassword, setShowPassword] = React.useState(false);
   const [error, setError] = React.useState("");
   const [submitting, setSubmitting] = React.useState(false);
+  const [scriptUrl, setScriptUrl] = React.useState(syncConfig.appsScriptUrl || "");
 
-  const submit = async (event: React.FormEvent) => {
+  const isReady = syncConfig.mode === "live" && !!syncConfig.appsScriptUrl.trim();
+
+  const handleUrlChange = (url: string) => {
+    setScriptUrl(url);
+    const trimmed = url.trim();
+    onUpdateConfig({
+      ...syncConfig,
+      appsScriptUrl: trimmed,
+      mode: trimmed ? "live" : "local",
+    });
+  };
+
+  const submit: React.FormEventHandler<HTMLFormElement> = async (event) => {
     event.preventDefault();
     setError("");
     setSubmitting(true);
@@ -36,6 +50,7 @@ export default function LoginPage({ syncConfig, onLogin }: LoginPageProps) {
       style={{ background: "var(--bg)", color: "var(--text)" }}
     >
       <div className="w-full max-w-md space-y-5 animate-fade-in">
+        {/* Logo + title */}
         <div className="text-center space-y-3">
           <div className="mx-auto w-14 h-14 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-white shadow-lg">
             <Lock className="w-7 h-7" />
@@ -50,6 +65,53 @@ export default function LoginPage({ syncConfig, onLogin }: LoginPageProps) {
           </div>
         </div>
 
+        {/* Apps Script URL setup card — shown only when URL is not configured */}
+        {!isReady && (
+          <div
+            className="rounded-2xl border p-5 space-y-3"
+            style={{ background: "var(--bg-card)", borderColor: "#f59e0b" }}
+          >
+            <div className="flex items-center gap-2">
+              <Settings2 className="w-4 h-4 text-amber-500" />
+              <p className="text-sm font-semibold" style={{ color: "var(--text)" }}>
+                Connect Google Sheet
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-widest mb-2" style={{ color: "var(--text-muted)" }}>
+                Apps Script Web App URL
+              </label>
+              <input
+                type="url"
+                placeholder="https://script.google.com/macros/s/…/exec"
+                value={scriptUrl}
+                onChange={(e) => handleUrlChange(e.target.value)}
+                className="w-full h-10 px-3 text-sm rounded-xl border focus:outline-none focus:ring-2 focus:ring-emerald-100 focus:border-emerald-400 transition-all"
+                style={{
+                  background: "var(--bg-elevated)",
+                  borderColor: "var(--border)",
+                  color: "var(--text)",
+                }}
+              />
+              <p className="text-[11px] mt-1.5" style={{ color: "var(--text-subtle)" }}>
+                Google Sheet → Extensions → Apps Script → Deploy as Web App
+              </p>
+            </div>
+
+            <a
+              href="https://developers.google.com/apps-script/guides/web"
+              target="_blank"
+              rel="noreferrer"
+              className="flex items-center gap-1.5 text-xs text-indigo-600 dark:text-indigo-400 hover:underline w-fit"
+            >
+              <ExternalLink className="w-3 h-3" />
+              How to deploy Apps Script
+            </a>
+          </div>
+        )}
+
+        {/* Login form */}
         <form
           onSubmit={submit}
           className="rounded-2xl border p-5 space-y-4 shadow-sm"
@@ -89,7 +151,7 @@ export default function LoginPage({ syncConfig, onLogin }: LoginPageProps) {
               />
               <button
                 type="button"
-                onClick={() => setShowPassword((value) => !value)}
+                onClick={() => setShowPassword((v) => !v)}
                 className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-lg cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700"
                 style={{ color: "var(--text-subtle)" }}
                 title={showPassword ? "Hide password" : "Show password"}
@@ -106,18 +168,22 @@ export default function LoginPage({ syncConfig, onLogin }: LoginPageProps) {
             </div>
           )}
 
-          {syncConfig.mode !== "live" && (
+          {!isReady && (
             <div className="text-xs rounded-xl border px-3 py-2.5 bg-amber-50 text-amber-800 border-amber-200 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-700">
-              Live Apps Script URL is needed because login reads the User sheet.
+              Upar Apps Script URL enter karo, tab Login button active hoga.
             </div>
           )}
 
           <button
             type="submit"
-            disabled={submitting || syncConfig.mode !== "live"}
+            disabled={submitting || !isReady}
             className="w-full h-11 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white text-sm font-semibold transition-all disabled:opacity-50 cursor-pointer flex items-center justify-center gap-2 shadow-sm"
           >
-            {submitting ? <><Loader2 className="w-4 h-4 animate-spin" /> Signing in...</> : <><LogIn className="w-4 h-4" /> Login</>}
+            {submitting ? (
+              <><Loader2 className="w-4 h-4 animate-spin" /> Signing in...</>
+            ) : (
+              <><LogIn className="w-4 h-4" /> Login</>
+            )}
           </button>
         </form>
       </div>
