@@ -1,0 +1,6 @@
+{
+  "name": "Lead and Design Tracker",
+  "description": "A responsive client lead workflow and design project tracking tool connected with Google Sheets and Google Drive.",
+  "requestFramePermissions": ["geolocation"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

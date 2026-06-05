@@ -1,0 +1,205 @@
+@import "tailwindcss";
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+@theme {
+  --color-primary:       #16a34a;
+  --color-primary-light: #f0fdf4;
+  --color-primary-medium:#86efac;
+  --color-primary-dark:  #15803d;
+
+  --color-text-main:     #111827;
+  --color-text-muted:    #6b7280;
+  --color-border:        #e5e7eb;
+  --color-bg-base:       #f9fafb;
+  --color-bg-card:       #ffffff;
+
+  --color-success:       #16a34a;
+  --color-warning:       #f59e0b;
+  --color-danger:        #ef4444;
+  --color-info:          #3b82f6;
+
+  --font-sans: "Inter", "Helvetica Neue", Arial, sans-serif;
+
+  --shadow-sm: 0 1px 3px 0 rgba(0,0,0,0.07), 0 1px 2px -1px rgba(0,0,0,0.04);
+  --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.07), 0 2px 4px -2px rgba(0,0,0,0.04);
+}
+
+:root {
+  --primary:       #16a34a;
+  --primary-light: #f0fdf4;
+  --primary-medium:#86efac;
+  --primary-dark:  #15803d;
+  --text-main:     #111827;
+  --text-muted:    #6b7280;
+  --border:        #e5e7eb;
+  --bg:            #f9fafb;
+  --success:       #16a34a;
+  --warning:       #f59e0b;
+  --danger:        #ef4444;
+  --info:          #3b82f6;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body {
+  height: 100%;
+  overflow: hidden;
+}
+
+body {
+  font-family: 'Inter', 'Helvetica Neue', Arial, sans-serif;
+  background-color: var(--bg);
+  color: var(--text-main);
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+#root {
+  height: 100%;
+  overflow: hidden;
+}
+
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 99px;
+}
+::-webkit-scrollbar-thumb:hover { background: #9ca3af; }
+
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+button:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+/* Status badges */
+.badge-success {
+  background: #dcfce7;
+  color: #15803d;
+  border: 1px solid #bbf7d0;
+}
+.badge-warning {
+  background: #fef3c7;
+  color: #92400e;
+  border: 1px solid #fde68a;
+}
+.badge-danger {
+  background: #fee2e2;
+  color: #991b1b;
+  border: 1px solid #fecaca;
+}
+.badge-info {
+  background: #dbeafe;
+  color: #1d4ed8;
+  border: 1px solid #bfdbfe;
+}
+.badge-neutral {
+  background: #f3f4f6;
+  color: #374151;
+  border: 1px solid #e5e7eb;
+}
+
+/* Simple fade animation */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-in { animation: fadeIn 0.25s ease-out forwards; }
+
+@keyframes toastIn {
+  from { opacity: 0; transform: translateX(100%); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+.toast-enter { animation: toastIn 0.25s ease-out forwards; }
+
+@keyframes modalIn {
+  from { opacity: 0; transform: scale(0.97); }
+  to   { opacity: 1; transform: scale(1); }
+}
+.modal-content { animation: modalIn 0.2s ease-out forwards; }
+
+/* Input base */
+.input-base {
+  width: 100%;
+  height: 40px;
+  padding: 0 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  font-size: 14px;
+  color: var(--text-main);
+  background: #fff;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.input-base:hover { border-color: var(--primary-medium); }
+.input-base:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.12);
+}
+.input-base::placeholder { color: #9ca3af; }
+
+/* Button primary */
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 40px;
+  padding: 0 20px;
+  border-radius: 8px;
+  background: var(--primary);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  transition: background-color 0.15s, transform 0.1s;
+}
+.btn-primary:hover  { background: var(--primary-dark); }
+.btn-primary:active { transform: scale(0.98); }
+.btn-primary:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+/* react-datepicker overrides */
+.react-datepicker {
+  font-family: 'Inter', sans-serif !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 10px !important;
+  box-shadow: var(--shadow-md) !important;
+  overflow: hidden;
+}
+.react-datepicker__header {
+  background: var(--primary) !important;
+  border-bottom: none !important;
+  padding-top: 12px !important;
+}
+.react-datepicker__current-month,
+.react-datepicker__day-name { color: #fff !important; }
+.react-datepicker__day--selected,
+.react-datepicker__day--range-start,
+.react-datepicker__day--range-end {
+  background: var(--primary) !important;
+  border-radius: 6px !important;
+  color: #fff !important;
+}
+.react-datepicker__day--in-range {
+  background: var(--primary-light) !important;
+  color: var(--primary-dark) !important;
+}
+.react-datepicker__day:hover {
+  background: var(--primary-light) !important;
+  border-radius: 6px !important;
+}
+.react-datepicker__navigation-icon::before { border-color: #fff !important; }
+
+/* Print styles */
+@media print {
+  body { overflow: visible !important; }
+  #root { overflow: visible !important; }
+  .no-print { display: none !important; }
+  .print-full { height: auto !important; overflow: visible !important; }
+}
