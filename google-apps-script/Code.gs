@@ -13,7 +13,7 @@ function doGet(e) {
   try {
     var action = e && e.parameter ? e.parameter.action : "";
     if (action === "getUsers") {
-      var userResponse = { status: "success", data: getUserSheetData() };
+      var userResponse = { status: "success", data: getUserSheetData() }; 
       if (e.parameter.callback) {
         return jsonpResponse(e.parameter.callback, userResponse);
       }
