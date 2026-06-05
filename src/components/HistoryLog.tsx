@@ -136,7 +136,7 @@ export default function HistoryLog({ leads }: HistoryLogProps) {
                   {/* Timeline dot */}
                   <div className="flex items-start gap-4 flex-1 min-w-0">
                     <div className="flex flex-col items-center mt-1 shrink-0">
-                      <div className="w-2.5 h-2.5 rounded-full ring-2 ring-offset-2" style={{ background: badge.color, ringColor: badge.color + '33', ringOffsetColor: 'var(--bg-card)' }} />
+                      <div className="w-2.5 h-2.5 rounded-full" style={{ background: badge.color, boxShadow: `0 0 0 2px var(--bg-card), 0 0 0 4px ${badge.color}` }} />
                       {index < filtered.length - 1 && <div className="w-px flex-1 min-h-[24px] mt-1.5" style={{ background: 'var(--border)' }} />}
                     </div>
 

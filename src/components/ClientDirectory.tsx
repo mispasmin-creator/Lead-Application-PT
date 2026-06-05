@@ -1,4 +1,5 @@
 import React from 'react';
+import ReactDOM from 'react-dom';
 import {
   Users, Search, Trash2, Phone, AlertTriangle, MapPin,
   TrendingUp, CheckCircle2, Clock,
@@ -174,10 +175,27 @@ export default function ClientDirectory({ leads, onDelete, syncConfig }: ClientD
       )}
 
       {/* Delete modal */}
-      {modalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+      {modalOpen && ReactDOM.createPortal(
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 9999,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            background: "rgba(15, 23, 42, 0.65)",
+            backdropFilter: "blur(8px)",
+            WebkitBackdropFilter: "blur(8px)",
+            padding: "16px",
+          }}
+        >
           <div className="w-full max-w-sm rounded-2xl border shadow-2xl overflow-hidden modal-content"
-            style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
+            style={{
+              background: 'var(--bg-card)',
+              borderColor: 'var(--border)',
+              boxShadow: '0 25px 50px -12px rgba(0,0,0,0.5)',
+            }}>
 
             <div className="px-5 py-4 border-b flex items-center gap-3" style={{ borderColor: 'var(--border)', background: 'var(--bg-elevated)' }}>
               <div className="w-8 h-8 rounded-xl bg-rose-100 dark:bg-rose-900/30 flex items-center justify-center">
@@ -215,7 +233,8 @@ export default function ClientDirectory({ leads, onDelete, syncConfig }: ClientD
               </div>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

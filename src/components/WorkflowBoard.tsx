@@ -1,14 +1,15 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, createContext, useContext } from 'react';
+import ReactDOM from 'react-dom';
 import {
   Search, Filter, Download, Printer, FileText, FileSpreadsheet,
   ChevronUp, ChevronDown, ChevronsUpDown, RefreshCw, X, Eye,
   Edit3, CheckCircle2, Trash2, Upload, Loader2, ExternalLink,
   AlertCircle, Clock, CheckSquare, MapPin,
   ChevronLeft, ChevronRight, Columns, MoreVertical,
-  AlertTriangle, LayoutGrid, Calendar
+  AlertTriangle, LayoutGrid, Calendar, History, Undo
 } from 'lucide-react';
 import { Lead, ActiveStepId, SyncConfig } from '../types';
-import { updateStep, deleteLead, uploadFileToDrive } from '../utils/storage';
+import { updateStep, deleteLead, uploadFileToDrive, revertStep } from '../utils/storage';
 import * as XLSX from 'xlsx';
 import { saveAs } from 'file-saver';
 import jsPDF from 'jspdf';
@@ -18,8 +19,9 @@ interface WorkflowBoardProps {
   leads: Lead[];
   onRefresh: () => Promise<void>;
   syncConfig: SyncConfig;
-  activeTab?: ActiveStepId | 'all';
-  setActiveTab?: (tab: ActiveStepId | 'all') => void;
+  activeTab?: ActiveStepId | 'all' | 'history';
+  setActiveTab?: (tab: ActiveStepId | 'all' | 'history') => void;
+  onOptimisticUpdate?: (leadNo: string, updatedFields: Partial<Lead>) => void;
 }
 
 type SortDir   = 'asc' | 'desc' | null;
@@ -32,15 +34,17 @@ const STEP_NAMES: Record<number, string> = {
 };
 
 const ALL_COLUMNS: { key: keyof Lead; label: string; step?: number; width: string }[] = [
-  { key: 'leadNo',       label: 'Lead No.',    width: 'min-w-[88px]'  },
-  { key: 'timestamp',    label: 'Date',         width: 'min-w-[96px]'  },
-  { key: 'clientName',   label: 'Client',       width: 'min-w-[130px]' },
-  { key: 'phone',        label: 'Phone',        width: 'min-w-[110px]' },
-  { key: 'leadSource',   label: 'Source',       width: 'min-w-[110px]' },
-  { key: 'salesPerson',  label: 'Sales Person', width: 'min-w-[110px]' },
-  { key: 'kitchen',      label: 'Kitchen',      width: 'min-w-[130px]' },
-  { key: 'wardrobe',     label: 'Wardrobe',     width: 'min-w-[120px]' },
-  { key: 'otherWork',    label: 'Other Work',   width: 'min-w-[110px]' },
+  { key: 'leadNo',       label: 'Lead No.',      width: 'min-w-[88px]'  },
+  { key: 'timestamp',    label: 'Date',           width: 'min-w-[96px]'  },
+  { key: 'clientName',   label: 'Client Name',    width: 'min-w-[140px]' },
+  { key: 'phone',        label: 'Phone',          width: 'min-w-[120px]' },
+  { key: 'gpsLocation',  label: 'GPS Location',   width: 'min-w-[130px]' },
+  { key: 'leadSource',   label: 'Lead Source',    width: 'min-w-[130px]' },
+  { key: 'salesPerson',  label: 'Sales Person',   width: 'min-w-[120px]' },
+  { key: 'kitchen',      label: 'Kitchen Type',   width: 'min-w-[140px]' },
+  { key: 'wardrobe',     label: 'Wardrobe Type',  width: 'min-w-[130px]' },
+  { key: 'otherWork',    label: 'Other Scope',    width: 'min-w-[130px]' },
+  { key: 'attachFile',   label: 'Attachment',     width: 'min-w-[110px]' },
   { key: 'planned1',     label: 'Planned 1', step: 1, width: 'min-w-[90px]' },
   { key: 'actual1',      label: 'Actual 1',  step: 1, width: 'min-w-[90px]' },
   { key: 'delay1',       label: 'Delay 1',   step: 1, width: 'min-w-[70px]' },
@@ -70,8 +74,9 @@ const ALL_COLUMNS: { key: keyof Lead; label: string; step?: number; width: strin
 ];
 
 const DEFAULT_VISIBLE = new Set<keyof Lead>([
-  'leadNo','timestamp','clientName','phone','salesPerson','leadSource',
-  'kitchen','wardrobe','designStatus','actual1','actual2','actual3','actual4','actual5',
+  'leadNo', 'clientName', 'phone', 'gpsLocation',
+  'kitchen', 'wardrobe', 'otherWork',
+  'leadSource', 'salesPerson', 'attachFile',
 ]);
 
 const STEP_COLORS: Record<number, string> = {
@@ -160,6 +165,87 @@ const CellValue = ({ col, lead }: { col: typeof ALL_COLUMNS[number]; lead: Lead 
   return <span className="text-xs truncate block max-w-[180px]" style={{ color: 'var(--text)' }} title={val}>{val}</span>;
 };
 
+const ActionModalContext = createContext<{
+  mode: ModalMode;
+  get: (k: keyof Lead) => string;
+  set: (k: keyof Lead, v: string) => void;
+  uploading: keyof Lead | null;
+  uploadFile: (k: keyof Lead, file: File) => Promise<void>;
+} | null>(null);
+
+const InputField = ({ k, label, type = 'text', opts }: { k: keyof Lead; label: string; type?: 'text'|'textarea'|'select'; opts?: string[] }) => {
+  const ctx = useContext(ActionModalContext);
+  if (!ctx) return null;
+  const { mode, get, set } = ctx;
+  const val = get(k);
+  const inputCls = 'w-full h-10 px-3 text-sm rounded-xl border focus:outline-none focus:ring-2 focus:ring-emerald-100 dark:focus:ring-emerald-900/30 focus:border-emerald-400 transition-all';
+
+  return (
+    <div>
+      <label className="block text-[10px] font-semibold uppercase tracking-widest mb-1.5" style={{ color: 'var(--text-subtle)' }}>{label}</label>
+      {mode === 'view' ? (
+        <p className="text-sm min-h-[20px] py-1" style={{ color: 'var(--text)' }}>{val || <span className="italic text-xs" style={{ color: 'var(--text-subtle)' }}>Not set</span>}</p>
+      ) : type === 'textarea' ? (
+        <textarea value={val} onChange={e => set(k, e.target.value)} rows={3}
+          className="w-full px-3 py-2 text-sm rounded-xl border focus:outline-none focus:ring-2 focus:ring-emerald-100 dark:focus:ring-emerald-900/30 focus:border-emerald-400 resize-none transition-all"
+          style={{ background: 'var(--bg-elevated)', borderColor: 'var(--border)', color: 'var(--text)' }} />
+      ) : type === 'select' && opts ? (
+        <select value={val} onChange={e => set(k, e.target.value)}
+          className={`${inputCls} appearance-none cursor-pointer`}
+          style={{ background: 'var(--bg-elevated)', borderColor: 'var(--border)', color: 'var(--text)' }}>
+          {opts.map(o => <option key={o} value={o}>{o}</option>)}
+        </select>
+      ) : (
+        <input type="text" value={val} onChange={e => set(k, e.target.value)}
+          className={inputCls}
+          style={{ background: 'var(--bg-elevated)', borderColor: 'var(--border)', color: 'var(--text)' }} />
+      )}
+    </div>
+  );
+};
+
+const FileRow = ({ k, label }: { k: keyof Lead; label: string }) => {
+  const ctx = useContext(ActionModalContext);
+  if (!ctx) return null;
+  const { mode, get, uploading, uploadFile } = ctx;
+  const url = get(k);
+
+  return (
+    <div className="flex items-center justify-between p-4 rounded-xl border"
+      style={{ background: 'var(--bg-elevated)', borderColor: 'var(--border)' }}>
+      <div className="flex items-center gap-3">
+        <div className="w-9 h-9 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 flex items-center justify-center shrink-0">
+          <FileText className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+        </div>
+        <div>
+          <p className="text-sm font-semibold" style={{ color: 'var(--text)' }}>{label}</p>
+          <p className="text-xs mt-0.5" style={{ color: 'var(--text-subtle)' }}>
+            {url.startsWith('http') ? 'Stored in Drive' : 'No file attached'}
+          </p>
+        </div>
+      </div>
+      <div className="flex items-center gap-2">
+        {url.startsWith('http') && (
+          <a href={url} target="_blank" rel="noreferrer"
+            className="h-8 px-3 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-colors border"
+            style={{ background: 'var(--bg-card)', borderColor: 'var(--border)', color: 'var(--text)' }}>
+            <Eye className="w-3.5 h-3.5" /> View
+          </a>
+        )}
+        {mode === 'edit' && (
+          <label className={`relative cursor-pointer h-8 px-3 rounded-lg border text-xs font-medium flex items-center gap-1.5 transition-colors ${uploading === k ? 'opacity-60' : ''}`}
+            style={{ background: 'var(--bg-card)', borderColor: 'var(--border)', color: 'var(--text)' }}>
+            {uploading === k ? <Loader2 className="w-3.5 h-3.5 animate-spin text-emerald-500" /> : <Upload className="w-3.5 h-3.5" />}
+            Upload
+            <input type="file" className="absolute inset-0 opacity-0 cursor-pointer w-full" disabled={uploading !== null}
+              onChange={e => { if (e.target.files?.[0]) uploadFile(k, e.target.files[0]); }} />
+          </label>
+        )}
+      </div>
+    </div>
+  );
+};
+
 // ─── Action Modal ──────────────────────────────────────────────────────────────
 
 interface ModalProps {
@@ -168,11 +254,13 @@ interface ModalProps {
   onSave: (data: Partial<Lead>) => Promise<void>;
   onDelete: () => Promise<void>;
   onMarkComplete: (stepId: ActiveStepId) => Promise<void>;
+  onRevert: (leadNo: string, currentStepNumber: number) => Promise<void>;
   syncConfig: SyncConfig;
+  activeTab: ActiveStepId | 'all' | 'history';
 }
 
-function ActionModal({ lead, onClose, onSave, onDelete, onMarkComplete, syncConfig }: ModalProps) {
-  const [mode,       setMode]       = useState<ModalMode>('view');
+function ActionModal({ lead, onClose, onSave, onDelete, onMarkComplete, onRevert, syncConfig, activeTab }: ModalProps) {
+  const [mode,       setMode]       = useState<ModalMode>('edit');
   const [editData,   setEditData]   = useState<Partial<Lead>>({});
   const [section,    setSection]    = useState<'details' | 'steps' | 'files'>('details');
   const [saving,     setSaving]     = useState(false);
@@ -180,34 +268,10 @@ function ActionModal({ lead, onClose, onSave, onDelete, onMarkComplete, syncConf
   const [confirmDel, setConfirmDel] = useState(false);
   const [uploading,  setUploading]  = useState<keyof Lead | null>(null);
   const [err,        setErr]        = useState<string | null>(null);
+  const [reverting,  setReverting]  = useState(false);
 
   const get = (k: keyof Lead) => mode === 'edit' ? String(editData[k] ?? lead[k] ?? '') : String(lead[k] ?? '');
   const set = (k: keyof Lead, v: string) => setEditData(p => ({ ...p, [k]: v }));
-
-  const inputCls = 'w-full h-10 px-3 text-sm rounded-xl border focus:outline-none focus:ring-2 focus:ring-emerald-100 dark:focus:ring-emerald-900/30 focus:border-emerald-400 transition-all';
-
-  const InputField = ({ k, label, type = 'text', opts }: { k: keyof Lead; label: string; type?: 'text'|'textarea'|'select'; opts?: string[] }) => (
-    <div>
-      <label className="block text-[10px] font-semibold uppercase tracking-widest mb-1.5" style={{ color: 'var(--text-subtle)' }}>{label}</label>
-      {mode === 'view' ? (
-        <p className="text-sm min-h-[20px] py-1" style={{ color: 'var(--text)' }}>{get(k) || <span className="italic text-xs" style={{ color: 'var(--text-subtle)' }}>Not set</span>}</p>
-      ) : type === 'textarea' ? (
-        <textarea value={get(k)} onChange={e => set(k, e.target.value)} rows={3}
-          className="w-full px-3 py-2 text-sm rounded-xl border focus:outline-none focus:ring-2 focus:ring-emerald-100 dark:focus:ring-emerald-900/30 focus:border-emerald-400 resize-none transition-all"
-          style={{ background: 'var(--bg-elevated)', borderColor: 'var(--border)', color: 'var(--text)' }} />
-      ) : type === 'select' && opts ? (
-        <select value={get(k)} onChange={e => set(k, e.target.value)}
-          className={`${inputCls} appearance-none cursor-pointer`}
-          style={{ background: 'var(--bg-elevated)', borderColor: 'var(--border)', color: 'var(--text)' }}>
-          {opts.map(o => <option key={o} value={o}>{o}</option>)}
-        </select>
-      ) : (
-        <input type="text" value={get(k)} onChange={e => set(k, e.target.value)}
-          className={inputCls}
-          style={{ background: 'var(--bg-elevated)', borderColor: 'var(--border)', color: 'var(--text)' }} />
-      )}
-    </div>
-  );
 
   const uploadFile = async (k: keyof Lead, file: File) => {
     setUploading(k); setErr(null);
@@ -218,49 +282,52 @@ function ActionModal({ lead, onClose, onSave, onDelete, onMarkComplete, syncConf
     finally { setUploading(null); }
   };
 
-  const FileRow = ({ k, label }: { k: keyof Lead; label: string }) => {
-    const url = String(editData[k] ?? lead[k] ?? '');
-    return (
-      <div className="flex items-center justify-between p-4 rounded-xl border"
-        style={{ background: 'var(--bg-elevated)', borderColor: 'var(--border)' }}>
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 flex items-center justify-center shrink-0">
-            <FileText className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-          </div>
-          <div>
-            <p className="text-sm font-semibold" style={{ color: 'var(--text)' }}>{label}</p>
-            <p className="text-xs mt-0.5" style={{ color: 'var(--text-subtle)' }}>
-              {url.startsWith('http') ? 'Stored in Drive' : 'No file attached'}
-            </p>
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          {url.startsWith('http') && (
-            <a href={url} target="_blank" rel="noreferrer"
-              className="h-8 px-3 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-colors border"
-              style={{ background: 'var(--bg-card)', borderColor: 'var(--border)', color: 'var(--text)' }}>
-              <Eye className="w-3.5 h-3.5" /> View
-            </a>
-          )}
-          {mode === 'edit' && (
-            <label className={`relative cursor-pointer h-8 px-3 rounded-lg border text-xs font-medium flex items-center gap-1.5 transition-colors ${uploading === k ? 'opacity-60' : ''}`}
-              style={{ background: 'var(--bg-card)', borderColor: 'var(--border)', color: 'var(--text)' }}>
-              {uploading === k ? <Loader2 className="w-3.5 h-3.5 animate-spin text-emerald-500" /> : <Upload className="w-3.5 h-3.5" />}
-              Upload
-              <input type="file" className="absolute inset-0 opacity-0 cursor-pointer w-full" disabled={uploading !== null}
-                onChange={e => { if (e.target.files?.[0]) uploadFile(k, e.target.files[0]); }} />
-            </label>
-          )}
-        </div>
-      </div>
-    );
-  };
-
   const handleSave = async () => {
     setSaving(true); setErr(null);
-    try { await onSave(editData); setMode('view'); setEditData({}); }
+    try { await onSave(editData); onClose(); }
     catch (ex: any) { setErr(ex.message); }
     finally { setSaving(false); }
+  };
+
+  const revertTargetStep = useMemo<number | null>(() => {
+    if (activeTab !== 'all' && activeTab !== 'history') {
+      if (activeTab > 1) {
+        return activeTab - 1;
+      }
+      return null;
+    }
+    if (activeTab === 'history') {
+      return 5;
+    }
+    let foundIncomplete = false;
+    let currentStep = 1;
+    for (let i = 1; i <= 5; i++) {
+      if (lead[`planned${i}` as keyof Lead] && !lead[`actual${i}` as keyof Lead]) {
+        currentStep = i;
+        foundIncomplete = true;
+        break;
+      }
+    }
+    if (!foundIncomplete && lead.actual5) {
+      return 5;
+    }
+    if (currentStep > 1) {
+      return currentStep - 1;
+    }
+    return null;
+  }, [lead, activeTab]);
+
+  const handleRevert = async () => {
+    if (revertTargetStep === null) return;
+    setReverting(true); setErr(null);
+    try {
+      await onRevert(lead.leadNo, revertTargetStep + 1);
+      onClose();
+    } catch (ex: any) {
+      setErr(ex.message);
+    } finally {
+      setReverting(false);
+    }
   };
 
   const handleDelete = async () => {
@@ -269,10 +336,30 @@ function ActionModal({ lead, onClose, onSave, onDelete, onMarkComplete, syncConf
     catch (ex: any) { setErr(ex.message); setDeleting(false); }
   };
 
-  return (
-    <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" onClick={onClose}>
-      <div className="rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col overflow-hidden modal-content border"
-        style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}
+  const modalNode = (
+    <div
+      style={{
+        position: "fixed",
+        inset: 0,
+        zIndex: 9999,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        background: "rgba(15, 23, 42, 0.65)",
+        backdropFilter: "blur(8px)",
+        WebkitBackdropFilter: "blur(8px)",
+        padding: "16px",
+      }}
+      onClick={onClose}
+    >
+      <div className="rounded-2xl shadow-2xl w-full max-w-3xl flex flex-col overflow-hidden modal-content border"
+        style={{
+          background: 'var(--bg-card)',
+          borderColor: 'var(--border)',
+          maxHeight: '90vh',
+          position: 'relative',
+          boxShadow: '0 25px 50px -12px rgba(0,0,0,0.5)',
+        }}
         onClick={e => e.stopPropagation()}>
 
         {/* Header */}
@@ -282,7 +369,17 @@ function ActionModal({ lead, onClose, onSave, onDelete, onMarkComplete, syncConf
             <div className="flex flex-wrap items-center gap-2 mb-1.5">
               <span className="font-mono text-xs px-2 py-0.5 rounded-lg font-semibold"
                 style={{ background: 'var(--bg-card)', color: 'var(--text-muted)' }}>{lead.leadNo}</span>
-              <StatusBadge lead={lead} />
+              {activeTab === 'all' || activeTab === 'history' ? (
+                <StatusBadge lead={lead} />
+              ) : (
+                <span className={`inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-0.5 rounded-full border ${
+                  !!lead[`actual${activeTab}` as keyof Lead]
+                    ? 'bg-emerald-100 text-emerald-800 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-700'
+                    : 'bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-700'
+                }`}>
+                  {!!lead[`actual${activeTab}` as keyof Lead] ? 'Step Completed' : 'Step Pending'}
+                </span>
+              )}
             </div>
             <h2 className="font-bold text-xl leading-tight truncate" style={{ color: 'var(--text)' }}>{lead.clientName}</h2>
             <p className="text-xs mt-0.5" style={{ color: 'var(--text-subtle)' }}>
@@ -290,25 +387,6 @@ function ActionModal({ lead, onClose, onSave, onDelete, onMarkComplete, syncConf
             </p>
           </div>
           <div className="flex items-center gap-2 shrink-0">
-            {mode === 'view' ? (
-              <button onClick={() => { setMode('edit'); setEditData({}); }}
-                className="h-9 px-4 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-900/30 dark:text-emerald-400 dark:hover:bg-emerald-900/50">
-                <Edit3 className="w-3.5 h-3.5" /> Edit
-              </button>
-            ) : (
-              <>
-                <button onClick={() => { setMode('view'); setEditData({}); setErr(null); }} disabled={saving}
-                  className="h-9 px-4 rounded-xl text-xs font-semibold transition-colors cursor-pointer border disabled:opacity-50"
-                  style={{ background: 'var(--bg-card)', borderColor: 'var(--border)', color: 'var(--text)' }}>
-                  Cancel
-                </button>
-                <button onClick={handleSave} disabled={saving || uploading !== null}
-                  className="h-9 px-4 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all disabled:opacity-50 cursor-pointer shadow-sm">
-                  {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckSquare className="w-3.5 h-3.5" />}
-                  {saving ? 'Saving…' : 'Save'}
-                </button>
-              </>
-            )}
             <button onClick={onClose} className="h-8 w-8 flex items-center justify-center rounded-lg transition-colors cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700"
               style={{ color: 'var(--text-subtle)' }}>
               <X className="w-4 h-4" />
@@ -317,27 +395,31 @@ function ActionModal({ lead, onClose, onSave, onDelete, onMarkComplete, syncConf
         </div>
 
         {/* Progress bar */}
-        <div className="px-6 py-3 border-b shrink-0 flex items-center gap-4"
-          style={{ background: 'var(--bg-elevated)', borderColor: 'var(--border)' }}>
-          <span className="text-xs font-medium shrink-0" style={{ color: 'var(--text-muted)' }}>Overall Progress</span>
-          <ProgressBar lead={lead} />
-        </div>
+        {(activeTab === 'all' || activeTab === 'history') && (
+          <div className="px-6 py-3 border-b shrink-0 flex items-center gap-4"
+            style={{ background: 'var(--bg-elevated)', borderColor: 'var(--border)' }}>
+            <span className="text-xs font-medium shrink-0" style={{ color: 'var(--text-muted)' }}>Overall Progress</span>
+            <ProgressBar lead={lead} />
+          </div>
+        )}
 
         {/* Tabs */}
-        <div className="px-6 py-2.5 border-b shrink-0 flex gap-1"
-          style={{ borderColor: 'var(--border)' }}>
-          {(['details', 'steps', 'files'] as const).map(t => (
-            <button key={t} onClick={() => setSection(t)}
-              className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer capitalize ${
-                section === t
-                  ? 'bg-emerald-600 text-white shadow-sm'
-                  : 'hover:bg-gray-100 dark:hover:bg-gray-700'
-              }`}
-              style={section !== t ? { color: 'var(--text-muted)' } : {}}>
-              {t}
-            </button>
-          ))}
-        </div>
+        {(activeTab === 'all' || activeTab === 'history') && (
+          <div className="px-6 py-2.5 border-b shrink-0 flex gap-1"
+            style={{ borderColor: 'var(--border)' }}>
+            {(['details', 'steps', 'files'] as const).map(t => (
+              <button key={t} onClick={() => setSection(t)}
+                className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer capitalize ${
+                  section === t
+                    ? 'bg-emerald-600 text-white shadow-sm'
+                    : 'hover:bg-gray-100 dark:hover:bg-gray-700'
+                }`}
+                style={section !== t ? { color: 'var(--text-muted)' } : {}}>
+                {t}
+              </button>
+            ))}
+          </div>
+        )}
 
         {/* Error */}
         {err && (
@@ -350,119 +432,203 @@ function ActionModal({ lead, onClose, onSave, onDelete, onMarkComplete, syncConf
 
         {/* Body */}
         <div className="flex-1 overflow-y-auto p-6 space-y-5">
-          {section === 'details' && (
-            <>
-              <div className="grid grid-cols-2 gap-5">
-                <InputField k="clientName"  label="Client Name" />
-                <InputField k="phone"       label="Phone" />
-                <InputField k="leadSource"  label="Lead Source" type="select"
-                  opts={['Instagram Ad','Facebook Campaign','Google Organic','Store Walk-in','Designer Referral','Reference Client']} />
-                <InputField k="salesPerson" label="Sales Person" type="select"
-                  opts={['Aman Gupta','Kriti Sen','Sonal Verma','Rajdeep Das']} />
+          {activeTab !== 'all' && activeTab !== 'history' ? (
+            <div className="space-y-5">
+              {/* Step info banner */}
+              <div className="rounded-xl border p-4" style={{ background: 'var(--bg-elevated)', borderColor: 'var(--border)' }}>
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-xl flex items-center justify-center text-white text-xs font-bold shadow-sm"
+                      style={{ background: !!lead[`actual${activeTab}` as keyof Lead] ? '#10b981' : !!lead[`planned${activeTab}` as keyof Lead] ? '#f59e0b' : STEP_ACCENT[activeTab] }}>
+                      {activeTab}
+                    </div>
+                    <span className="text-base font-semibold" style={{ color: 'var(--text)' }}>
+                      {STEP_NAMES[activeTab]}
+                    </span>
+                  </div>
+                  {/* Mark complete button */}
+                </div>
+
+                <div className="grid grid-cols-3 gap-4 text-xs">
+                  {[
+                    { label: 'Planned Date', val: fmtDate(String(lead[`planned${activeTab}` as keyof Lead] || '')) || '—', cls: '' },
+                    { label: 'Actual Date',  val: fmtDate(String(lead[`actual${activeTab}` as keyof Lead] || '')) || '—',  cls: !!lead[`actual${activeTab}` as keyof Lead] ? 'text-emerald-600 dark:text-emerald-400 font-semibold' : '' },
+                    { label: 'Delay Time',   val: String(lead[`delay${activeTab}` as keyof Lead] || '') || '—',            cls: lead[`delay${activeTab}` as keyof Lead] && lead[`delay${activeTab}` as keyof Lead] !== '0 days' ? 'text-rose-600 dark:text-rose-400 font-semibold' : 'text-emerald-600 dark:text-emerald-400' },
+                  ].map(({ label, val, cls }) => (
+                    <div key={label}>
+                      <p className="text-[10px] font-semibold uppercase tracking-widest mb-1" style={{ color: 'var(--text-subtle)' }}>{label}</p>
+                      <p className={`font-mono ${cls}`} style={!cls ? { color: 'var(--text-muted)' } : {}}>{val}</p>
+                    </div>
+                  ))}
+                </div>
               </div>
-              <InputField k="kitchen"   label="Kitchen Work" type="select"
-                opts={['L-Shaped Modular Kitchen','U-Shaped Modular Kitchen','Parallel Kitchen Setup','Straight Kitchen (Standard)','Island Luxury Layout','No Kitchen Work Involved']} />
-              <InputField k="wardrobe"  label="Wardrobe Unit" type="select"
-                opts={['2-Door Sliding Wardrobe','3-Door Sliding Wardrobe','Hinged Modular Wardrobe','Walk-in Wardrobe Closet','No Wardrobe Layout']} />
-              <InputField k="otherWork" label="Other Scope" type="textarea" />
-              {lead.gpsLocation && (
-                <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl border"
-                  style={{ background: 'var(--bg-elevated)', borderColor: 'var(--border)' }}>
-                  <MapPin className="w-3.5 h-3.5 shrink-0" style={{ color: 'var(--text-subtle)' }} />
-                  <span className="text-xs font-mono" style={{ color: 'var(--text-muted)' }}>{lead.gpsLocation}</span>
+
+              {/* Step specific fields */}
+              <div className="space-y-4">
+                {activeTab === 1 && (
+                  <>
+                    <InputField k="designStatus" label="Design Status" type="select"
+                      opts={['Draft Ready','Sent for Initial Review','Revision Needed','Approved by Client','Layout Frozen']} />
+                    <InputField k="remarks1" label="Remarks" type="textarea" />
+                    <div className="pt-2">
+                      <label className="block text-[10px] font-semibold uppercase tracking-widest mb-1.5" style={{ color: 'var(--text-subtle)' }}>2D Design Copy</label>
+                      <FileRow k="designCopy" label="2D Design Copy" />
+                    </div>
+                  </>
+                )}
+
+                {activeTab === 2 && (
+                  <>
+                    <InputField k="clientStatus1" label="Client Status" type="select"
+                      opts={['Done / prepare Quotation','Awaiting response','Hold on budget reasons']} />
+                    <InputField k="clientResponse1" label="Client Response" />
+                    <InputField k="remarks2" label="Remarks" type="textarea" />
+                  </>
+                )}
+
+                {activeTab === 3 && (
+                  <>
+                    <InputField k="quotAmount" label="Quotation Amount (₹)" />
+                    <div className="pt-2">
+                      <label className="block text-[10px] font-semibold uppercase tracking-widest mb-1.5" style={{ color: 'var(--text-subtle)' }}>Quotation Copy</label>
+                      <FileRow k="quotCopy" label="Quotation Copy" />
+                    </div>
+                  </>
+                )}
+
+                {activeTab === 4 && (
+                  <>
+                    <InputField k="clientStatus2" label="Client Status" type="select"
+                      opts={['Approved for 3D Render','Token Paid - Design Inbound','Hold - revision in 2D first']} />
+                    <InputField k="clientResponse2" label="Client Response" />
+                    <InputField k="remarks3" label="Remarks" type="textarea" />
+                  </>
+                )}
+
+                {activeTab === 5 && (
+                  <>
+                    <InputField k="threeDStatus" label="3D Status" type="select"
+                      opts={['Approved & Sign-off Completed','3D render sent for feedback','Rendering in Queue','Alternative options requested']} />
+                    <InputField k="remarks4" label="Comments" type="textarea" />
+                    <div className="pt-2">
+                      <label className="block text-[10px] font-semibold uppercase tracking-widest mb-1.5" style={{ color: 'var(--text-subtle)' }}>3D Render Copy</label>
+                      <FileRow k="threeDDesignCopy" label="3D Render Copy" />
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+          ) : (
+            <>
+              {section === 'details' && (
+                <>
+                  <div className="grid grid-cols-2 gap-5">
+                    <InputField k="clientName"  label="Client Name" />
+                    <InputField k="phone"       label="Phone" />
+                    <InputField k="leadSource"  label="Lead Source" type="select"
+                      opts={['Instagram Ad','Facebook Campaign','Google Organic','Store Walk-in','Designer Referral','Reference Client']} />
+                    <InputField k="salesPerson" label="Sales Person" type="select"
+                      opts={['Aman Gupta','Kriti Sen','Sonal Verma','Rajdeep Das']} />
+                  </div>
+                  <InputField k="kitchen"   label="Kitchen Work" type="select"
+                    opts={['L-Shaped Modular Kitchen','U-Shaped Modular Kitchen','Parallel Kitchen Setup','Straight Kitchen (Standard)','Island Luxury Layout','No Kitchen Work Involved']} />
+                  <InputField k="wardrobe"  label="Wardrobe Unit" type="select"
+                    opts={['2-Door Sliding Wardrobe','3-Door Sliding Wardrobe','Hinged Modular Wardrobe','Walk-in Wardrobe Closet','No Wardrobe Layout']} />
+                  <InputField k="otherWork" label="Other Scope" type="textarea" />
+                  {lead.gpsLocation && (
+                    <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl border"
+                      style={{ background: 'var(--bg-elevated)', borderColor: 'var(--border)' }}>
+                      <MapPin className="w-3.5 h-3.5 shrink-0" style={{ color: 'var(--text-subtle)' }} />
+                      <span className="text-xs font-mono" style={{ color: 'var(--text-muted)' }}>{lead.gpsLocation}</span>
+                    </div>
+                  )}
+                </>
+              )}
+
+              {section === 'steps' && (
+                <div className="space-y-4">
+                  {[1,2,3,4,5].map(i => {
+                    const planned = String(lead[`planned${i}` as keyof Lead] || '');
+                    const actual  = String(lead[`actual${i}` as keyof Lead]  || '');
+                    const delay   = String(lead[`delay${i}` as keyof Lead]   || '');
+                    const done    = !!actual;
+                    const pend    = !!planned && !done;
+                    return (
+                      <div key={i} className={`rounded-2xl border p-5 transition-all ${
+                        done ? 'border-emerald-200 dark:border-emerald-700' :
+                        pend ? 'border-amber-200 dark:border-amber-700' : ''
+                      }`}
+                        style={!done && !pend ? { background: 'var(--bg-elevated)', borderColor: 'var(--border)' } :
+                          done ? { background: 'var(--bg-card)', borderColor: '' } :
+                          { background: 'var(--bg-card)', borderColor: '' }}>
+                        <div className="flex items-center justify-between mb-4">
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-xl flex items-center justify-center text-white text-sm font-bold shadow-sm"
+                              style={{ background: done ? '#10b981' : pend ? '#f59e0b' : STEP_ACCENT[i] }}>
+                              {i}
+                            </div>
+                            <span className={`text-base font-semibold ${
+                              done ? 'text-emerald-700 dark:text-emerald-400' :
+                              pend ? 'text-amber-700 dark:text-amber-400' : ''
+                            }`} style={!done && !pend ? { color: 'var(--text-muted)' } : {}}>
+                              {STEP_NAMES[i]}
+                            </span>
+                            {done && <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />}
+                            {pend && <Clock className="w-4 h-4 text-amber-500" />}
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-3 gap-4 text-xs mb-4">
+                          {[
+                            { label: 'Planned', val: fmtDate(planned)||'—', cls: '' },
+                            { label: 'Actual',  val: fmtDate(actual)||'—',  cls: done ? 'text-emerald-600 dark:text-emerald-400 font-semibold' : '' },
+                            { label: 'Delay',   val: delay||'—',            cls: delay && delay !== '0 days' ? 'text-rose-600 dark:text-rose-400 font-semibold' : 'text-emerald-600 dark:text-emerald-400' },
+                          ].map(({ label, val, cls }) => (
+                            <div key={label}>
+                              <p className="text-[10px] font-semibold uppercase tracking-widest mb-1" style={{ color: 'var(--text-subtle)' }}>{label}</p>
+                              <p className={`font-mono ${cls}`} style={!cls ? { color: 'var(--text-muted)' } : {}}>{val}</p>
+                            </div>
+                          ))}
+                        </div>
+                        {(done || pend) && (
+                          <div className="pt-4 border-t space-y-4" style={{ borderColor: 'var(--border)' }}>
+                            {i === 1 && (<>
+                              <InputField k="designStatus" label="Design Status" type="select"
+                                opts={['Draft Ready','Sent for Initial Review','Revision Needed','Approved by Client','Layout Frozen']} />
+                              <InputField k="remarks1" label="Remarks" type="textarea" />
+                            </>)}
+                            {i === 2 && (<>
+                              <InputField k="clientStatus1"   label="Client Status" type="select" opts={['Done / prepare Quotation','Awaiting response','Hold on budget reasons']} />
+                              <InputField k="clientResponse1" label="Client Response" />
+                              <InputField k="remarks2"        label="Remarks" type="textarea" />
+                            </>)}
+                            {i === 3 && <InputField k="quotAmount" label="Quotation Amount (₹)" />}
+                            {i === 4 && (<>
+                              <InputField k="clientStatus2"   label="Client Status" type="select" opts={['Approved for 3D Render','Token Paid - Design Inbound','Hold - revision in 2D first']} />
+                              <InputField k="clientResponse2" label="Client Response" />
+                              <InputField k="remarks3"        label="Remarks" type="textarea" />
+                            </>)}
+                            {i === 5 && (<>
+                              <InputField k="threeDStatus" label="3D Status" type="select"
+                                opts={['Approved & Sign-off Completed','3D render sent for feedback','Rendering in Queue','Alternative options requested']} />
+                              <InputField k="remarks4" label="Comments" type="textarea" />
+                            </>)}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {section === 'files' && (
+                <div className="space-y-3">
+                  <FileRow k="attachFile"       label="Lead Attachment"  />
+                  <FileRow k="designCopy"       label="2D Design Copy"   />
+                  <FileRow k="quotCopy"         label="Quotation Copy"   />
+                  <FileRow k="threeDDesignCopy" label="3D Render Copy"   />
                 </div>
               )}
             </>
-          )}
-
-          {section === 'steps' && (
-            <div className="space-y-4">
-              {[1,2,3,4,5].map(i => {
-                const planned = String(lead[`planned${i}` as keyof Lead] || '');
-                const actual  = String(lead[`actual${i}` as keyof Lead]  || '');
-                const delay   = String(lead[`delay${i}` as keyof Lead]   || '');
-                const done    = !!actual;
-                const pend    = !!planned && !done;
-                return (
-                  <div key={i} className={`rounded-2xl border p-5 transition-all ${
-                    done ? 'border-emerald-200 dark:border-emerald-700' :
-                    pend ? 'border-amber-200 dark:border-amber-700' : ''
-                  }`}
-                    style={!done && !pend ? { background: 'var(--bg-elevated)', borderColor: 'var(--border)' } :
-                      done ? { background: 'var(--bg-card)', borderColor: '' } :
-                      { background: 'var(--bg-card)', borderColor: '' }}>
-                    <div className="flex items-center justify-between mb-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-xl flex items-center justify-center text-white text-sm font-bold shadow-sm"
-                          style={{ background: done ? '#10b981' : pend ? '#f59e0b' : STEP_ACCENT[i] }}>
-                          {i}
-                        </div>
-                        <span className={`text-base font-semibold ${
-                          done ? 'text-emerald-700 dark:text-emerald-400' :
-                          pend ? 'text-amber-700 dark:text-amber-400' : ''
-                        }`} style={!done && !pend ? { color: 'var(--text-muted)' } : {}}>
-                          {STEP_NAMES[i]}
-                        </span>
-                        {done && <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />}
-                        {pend && <Clock className="w-4 h-4 text-amber-500" />}
-                      </div>
-                      {pend && (
-                        <button onClick={() => onMarkComplete(i as ActiveStepId)}
-                          className="h-8 px-4 text-xs font-semibold text-white bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 rounded-xl flex items-center gap-1.5 transition-all cursor-pointer shadow-sm">
-                          <CheckSquare className="w-3.5 h-3.5" /> Mark Complete
-                        </button>
-                      )}
-                    </div>
-                    <div className="grid grid-cols-3 gap-4 text-xs mb-4">
-                      {[
-                        { label: 'Planned', val: fmtDate(planned)||'—', cls: '' },
-                        { label: 'Actual',  val: fmtDate(actual)||'—',  cls: done ? 'text-emerald-600 dark:text-emerald-400 font-semibold' : '' },
-                        { label: 'Delay',   val: delay||'—',            cls: delay && delay !== '0 days' ? 'text-rose-600 dark:text-rose-400 font-semibold' : 'text-emerald-600 dark:text-emerald-400' },
-                      ].map(({ label, val, cls }) => (
-                        <div key={label}>
-                          <p className="text-[10px] font-semibold uppercase tracking-widest mb-1" style={{ color: 'var(--text-subtle)' }}>{label}</p>
-                          <p className={`font-mono ${cls}`} style={!cls ? { color: 'var(--text-muted)' } : {}}>{val}</p>
-                        </div>
-                      ))}
-                    </div>
-                    {(done || pend) && (
-                      <div className="pt-4 border-t space-y-4" style={{ borderColor: 'var(--border)' }}>
-                        {i === 1 && (<>
-                          <InputField k="designStatus" label="Design Status" type="select"
-                            opts={['Draft Ready','Sent for Initial Review','Revision Needed','Approved by Client','Layout Frozen']} />
-                          <InputField k="remarks1" label="Remarks" type="textarea" />
-                        </>)}
-                        {i === 2 && (<>
-                          <InputField k="clientStatus1"   label="Client Status" type="select" opts={['Done / prepare Quotation','Awaiting response','Hold on budget reasons']} />
-                          <InputField k="clientResponse1" label="Client Response" />
-                          <InputField k="remarks2"        label="Remarks" type="textarea" />
-                        </>)}
-                        {i === 3 && <InputField k="quotAmount" label="Quotation Amount (₹)" />}
-                        {i === 4 && (<>
-                          <InputField k="clientStatus2"   label="Client Status" type="select" opts={['Approved for 3D Render','Token Paid - Design Inbound','Hold - revision in 2D first']} />
-                          <InputField k="clientResponse2" label="Client Response" />
-                          <InputField k="remarks3"        label="Remarks" type="textarea" />
-                        </>)}
-                        {i === 5 && (<>
-                          <InputField k="threeDStatus" label="3D Status" type="select"
-                            opts={['Approved & Sign-off Completed','3D render sent for feedback','Rendering in Queue','Alternative options requested']} />
-                          <InputField k="remarks4" label="Comments" type="textarea" />
-                        </>)}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          )}
-
-          {section === 'files' && (
-            <div className="space-y-3">
-              <FileRow k="attachFile"       label="Lead Attachment"  />
-              <FileRow k="designCopy"       label="2D Design Copy"   />
-              <FileRow k="quotCopy"         label="Quotation Copy"   />
-              <FileRow k="threeDDesignCopy" label="3D Render Copy"   />
-            </div>
           )}
 
           {/* Delete zone */}
@@ -492,15 +658,48 @@ function ActionModal({ lead, onClose, onSave, onDelete, onMarkComplete, syncConf
             )}
           </div>
         </div>
+
+        {/* Footer */}
+        <div className="flex items-center justify-between px-6 py-4 border-t shrink-0"
+          style={{ borderColor: 'var(--border)', background: 'var(--bg-elevated)' }}>
+          <div>
+            {revertTargetStep !== null && (
+              <button onClick={handleRevert} disabled={saving || deleting || reverting}
+                className="h-10 px-4 text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-900/20 hover:bg-rose-100 dark:hover:bg-rose-900/30 rounded-xl text-xs font-semibold flex items-center gap-1.5 border border-rose-200 dark:border-rose-700 transition-colors cursor-pointer disabled:opacity-50">
+                {reverting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Undo className="w-3.5 h-3.5" />}
+                Revert to {STEP_NAMES[revertTargetStep]}
+              </button>
+            )}
+          </div>
+          <div className="flex items-center gap-3">
+            <button onClick={onClose} disabled={saving || reverting}
+              className="h-10 px-5 rounded-xl text-sm font-semibold transition-all cursor-pointer border hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-50"
+              style={{ background: 'var(--bg-card)', borderColor: 'var(--border)', color: 'var(--text)' }}>
+              Cancel
+            </button>
+            <button onClick={handleSave} disabled={saving || uploading !== null || reverting}
+              className="h-10 px-5 bg-linear-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded-xl text-sm font-semibold flex items-center gap-1.5 transition-all disabled:opacity-50 cursor-pointer shadow-sm">
+              {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckSquare className="w-4 h-4" />}
+              {saving ? 'Submitting…' : 'Submit'}
+            </button>
+          </div>
+        </div>
       </div>
     </div>
+  );
+
+  return ReactDOM.createPortal(
+    <ActionModalContext.Provider value={{ mode, get, set, uploading, uploadFile }}>
+      {modalNode}
+    </ActionModalContext.Provider>,
+    document.body
   );
 }
 
 // ─── Main Component ─────────────────────────────────────────────────────────────
 
-export default function WorkflowBoard({ leads, onRefresh, syncConfig, activeTab: extTab, setActiveTab: extSetTab }: WorkflowBoardProps) {
-  const [internalTab,  setInternalTab]  = useState<ActiveStepId | 'all'>('all');
+export default function WorkflowBoard({ leads, onRefresh, syncConfig, activeTab: extTab, setActiveTab: extSetTab, onOptimisticUpdate }: WorkflowBoardProps) {
+  const [internalTab,  setInternalTab]  = useState<ActiveStepId | 'all' | 'history'>('all');
   const activeTab    = extTab    !== undefined ? extTab    : internalTab;
   const setActiveTab = extSetTab !== undefined ? extSetTab : setInternalTab;
 
@@ -514,6 +713,7 @@ export default function WorkflowBoard({ leads, onRefresh, syncConfig, activeTab:
   const [visibleCols,  setVisibleCols]  = useState<Set<keyof Lead>>(new Set(DEFAULT_VISIBLE));
   const [showColMenu,  setShowColMenu]  = useState(false);
   const [showFilters,  setShowFilters]  = useState(false);
+  const [showExport,   setShowExport]   = useState(false);
   const [modal,        setModal]        = useState<Lead | null>(null);
   const [refreshing,   setRefreshing]   = useState(false);
   const [exporting,    setExporting]    = useState(false);
@@ -528,7 +728,9 @@ export default function WorkflowBoard({ leads, onRefresh, syncConfig, activeTab:
 
   const filtered = useMemo(() => {
     let list = [...leads];
-    if (activeTab !== 'all') {
+    if (activeTab === 'history') {
+      list = list.filter(l => !!l.actual5);
+    } else if (activeTab !== 'all') {
       list = list.filter(l => l[`planned${activeTab}` as keyof Lead] && !l[`actual${activeTab}` as keyof Lead]);
     }
     if (search) {
@@ -588,8 +790,20 @@ export default function WorkflowBoard({ leads, onRefresh, syncConfig, activeTab:
   const handleSaveLead = async (data: Partial<Lead>) => {
     if (!modal) return;
     let stepId: ActiveStepId = 1;
-    for (let i = 1; i <= 5; i++) {
-      if (modal[`planned${i}` as keyof Lead] && !modal[`actual${i}` as keyof Lead]) { stepId = i as ActiveStepId; break; }
+    if (activeTab !== 'all' && activeTab !== 'history') {
+      stepId = activeTab;
+    } else {
+      let foundIncomplete = false;
+      for (let i = 1; i <= 5; i++) {
+        if (modal[`planned${i}` as keyof Lead] && !modal[`actual${i}` as keyof Lead]) {
+          stepId = i as ActiveStepId;
+          foundIncomplete = true;
+          break;
+        }
+      }
+      if (!foundIncomplete) {
+        stepId = 5;
+      }
     }
     await updateStep(modal.leadNo, stepId, data, syncConfig);
     await onRefresh();
@@ -609,6 +823,27 @@ export default function WorkflowBoard({ leads, onRefresh, syncConfig, activeTab:
     await updateStep(modal.leadNo, stepId, {}, syncConfig);
     await onRefresh();
     notify('success', `Step ${stepId} marked complete`);
+  };
+
+  const handleRevertLead = async (leadNo: string, currentStepNumber: number) => {
+    const prevStep = currentStepNumber - 1;
+    const updatedFields: Partial<Lead> = {
+      [`actual${prevStep}` as keyof Lead]: "",
+      [`delay${prevStep}` as keyof Lead]: "",
+      [`planned${currentStepNumber}` as keyof Lead]: "",
+    };
+    if (onOptimisticUpdate) {
+      onOptimisticUpdate(leadNo, updatedFields);
+    }
+    setModal(null);
+    notify('success', `Lead step reverted successfully`);
+
+    revertStep(leadNo, currentStepNumber, syncConfig)
+      .then(() => onRefresh())
+      .catch((err) => {
+        console.error("Failed to sync revert to Google Sheet:", err);
+        notify('error', `Revert sync failed: ${err.message}`);
+      });
   };
 
   const exportRows = useMemo(() => filtered.map(l => ({
@@ -657,9 +892,11 @@ export default function WorkflowBoard({ leads, onRefresh, syncConfig, activeTab:
     } finally { setExporting(false); }
   };
 
-  const tabCount = (id: ActiveStepId | 'all') =>
-    id === 'all' ? leads.length
-    : leads.filter(l => l[`planned${id}` as keyof Lead] && !l[`actual${id}` as keyof Lead]).length;
+  const tabCount = (id: ActiveStepId | 'all' | 'history') => {
+    if (id === 'all') return leads.length;
+    if (id === 'history') return leads.filter(l => !!l.actual5).length;
+    return leads.filter(l => l[`planned${id}` as keyof Lead] && !l[`actual${id}` as keyof Lead]).length;
+  };
 
   const selectStyle = {
     background: 'var(--bg-card)', borderColor: 'var(--border)', color: 'var(--text)'
@@ -687,80 +924,119 @@ export default function WorkflowBoard({ leads, onRefresh, syncConfig, activeTab:
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight" style={{ color: 'var(--text)' }}>Pipeline Dashboard</h1>
-          <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>Track and manage all leads across workflow steps</p>
+          <div className="flex items-center gap-3 mb-1">
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shadow-sm">
+              <LayoutGrid className="w-4.5 h-4.5 text-white" />
+            </div>
+            <h1 className="text-2xl font-bold tracking-tight" style={{ color: 'var(--text)' }}>WorkFlow</h1>
+          </div>
+          <p className="text-sm ml-12" style={{ color: 'var(--text-muted)' }}>Track and manage all leads across workflow steps</p>
         </div>
         <button onClick={handleRefresh} disabled={refreshing}
-          className="h-10 px-5 rounded-xl text-sm font-medium flex items-center gap-2 transition-all disabled:opacity-50 cursor-pointer border"
+          className="h-10 px-5 rounded-xl text-sm font-semibold flex items-center gap-2 transition-all disabled:opacity-50 cursor-pointer border hover:shadow-sm"
           style={{ background: 'var(--bg-card)', borderColor: 'var(--border)', color: 'var(--text)' }}>
           <RefreshCw className={`w-3.5 h-3.5 text-emerald-500 ${refreshing ? 'animate-spin' : ''}`} />
-          {refreshing ? 'Refreshing…' : 'Refresh Data'}
+          {refreshing ? 'Refreshing…' : 'Refresh'}
         </button>
       </div>
 
       {/* Stats */}
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
         {[
-          { icon: <LayoutGrid className="w-4 h-4 text-slate-500" />,          label: 'Total',     value: stats.total,     color: 'var(--text)' },
-          { icon: <CheckCircle2 className="w-4 h-4 text-emerald-500" />,      label: 'Completed', value: stats.completed, color: '#10b981' },
-          { icon: <Clock className="w-4 h-4 text-amber-500" />,               label: 'Pending',   value: stats.pending,   color: '#f59e0b' },
-          { icon: <AlertTriangle className="w-4 h-4 text-rose-500" />,        label: 'Delayed',   value: stats.delayed,   color: '#f43f5e' },
-          { icon: <Calendar className="w-4 h-4 text-indigo-500" />,           label: 'Today',     value: stats.today,     color: '#6366f1' },
+          { icon: <LayoutGrid className="w-4 h-4 text-slate-500" />,       iconBg: 'bg-slate-100',   label: 'Total Leads', value: stats.total,     color: 'var(--text)',  bar: '#64748b' },
+          { icon: <CheckCircle2 className="w-4 h-4 text-emerald-600" />,   iconBg: 'bg-emerald-100', label: 'Completed',   value: stats.completed, color: '#059669',      bar: '#10b981' },
+          { icon: <Clock className="w-4 h-4 text-amber-600" />,             iconBg: 'bg-amber-100',   label: 'Pending',     value: stats.pending,   color: '#d97706',      bar: '#f59e0b' },
+          { icon: <AlertTriangle className="w-4 h-4 text-rose-600" />,      iconBg: 'bg-rose-100',    label: 'Delayed',     value: stats.delayed,   color: '#e11d48',      bar: '#f43f5e' },
+          { icon: <Calendar className="w-4 h-4 text-indigo-600" />,         iconBg: 'bg-indigo-100',  label: 'Added Today', value: stats.today,     color: '#4f46e5',      bar: '#6366f1' },
         ].map(s => (
-          <div key={s.label} className="rounded-2xl border p-4 hover:shadow-md transition-all"
+          <div key={s.label}
+            className="rounded-2xl border p-4 flex items-center gap-3 hover:shadow-md transition-all group relative overflow-hidden"
             style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
-            <div className="flex items-center gap-2 text-xs font-medium mb-2" style={{ color: 'var(--text-muted)' }}>
-              {s.icon} <span>{s.label}</span>
+            {/* Left accent bar */}
+            <div className="absolute left-0 top-0 bottom-0 w-1 rounded-l-2xl" style={{ background: s.bar }} />
+            <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${s.iconBg}`}>
+              {s.icon}
             </div>
-            <p className="text-2xl font-bold" style={{ color: s.color }}>{s.value}</p>
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-widest" style={{ color: 'var(--text-subtle)' }}>{s.label}</p>
+              <p className="text-2xl font-bold leading-tight mt-0.5" style={{ color: s.color }}>{s.value}</p>
+            </div>
           </div>
         ))}
       </div>
 
-      {/* Step tabs */}
-      <div className="flex gap-2 flex-wrap">
-        {[
-          { id: 'all' as const, name: 'All Leads', icon: <LayoutGrid className="w-3.5 h-3.5" />, accent: '#64748b' },
-          ...([1,2,3,4,5] as ActiveStepId[]).map(k => ({
-            id: k,
-            name: STEP_NAMES[k],
-            icon: <div className="w-2 h-2 rounded-full" style={{ background: STEP_ACCENT[k] }} />,
-            accent: STEP_ACCENT[k],
-          })),
-        ].map(({ id, name, icon, accent }) => {
-          const isActive = activeTab === id;
-          const count = tabCount(id as ActiveStepId | 'all');
-          return (
-            <button key={id} onClick={() => setActiveTab(id as ActiveStepId | 'all')}
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold border transition-all cursor-pointer ${
-                isActive ? 'text-white shadow-sm' : 'hover:shadow-sm'
-              }`}
-              style={isActive
-                ? { background: `linear-gradient(135deg, ${accent}, ${accent}cc)`, borderColor: 'transparent' }
-                : { background: 'var(--bg-card)', borderColor: 'var(--border)', color: 'var(--text-muted)' }
-              }>
-              {icon}
-              <span>{id !== 'all' ? `S${id}: ` : ''}{name}</span>
-              <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ${isActive ? 'bg-white/20 text-white' : ''}`}
-                style={!isActive ? { background: 'var(--bg-elevated)', color: 'var(--text-muted)' } : {}}>
-                {count}
-              </span>
-            </button>
-          );
-        })}
+      {/* Step tabs — centered, uniform emerald theme */}
+      <div className="rounded-2xl border overflow-hidden" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
+        {/* Section label */}
+        <div className="px-5 py-2.5 border-b flex items-center justify-center gap-2"
+          style={{ borderColor: 'var(--border)', background: 'var(--bg-elevated)' }}>
+          <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+          <span className="text-[11px] font-bold uppercase tracking-widest" style={{ color: 'var(--text-subtle)' }}>Workflow Steps</span>
+          <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+        </div>
+        {/* Tab row */}
+        <div className="flex overflow-x-auto justify-center">
+          {[
+            { id: 'all' as const, name: 'All Leads', shortName: 'All', step: null },
+            ...([1,2,3,4,5] as ActiveStepId[]).map(k => ({
+              id: k as any, name: STEP_NAMES[k], shortName: `S${k}`, step: k,
+            })),
+            { id: 'history' as const, name: 'History', shortName: 'Hist', step: 'H' },
+          ].map(({ id, name, shortName, step }) => {
+            const isActive = activeTab === id;
+            const count = tabCount(id as ActiveStepId | 'all' | 'history');
+            return (
+              <button key={id} onClick={() => setActiveTab(id as ActiveStepId | 'all' | 'history')}
+                className="relative flex flex-col items-center gap-1 px-6 py-3 text-xs font-semibold whitespace-nowrap transition-all cursor-pointer shrink-0"
+                style={isActive
+                  ? { color: '#059669' }
+                  : { color: 'var(--text-muted)' }
+                }
+                onMouseEnter={e => { if (!isActive) (e.currentTarget as HTMLElement).style.color = '#059669'; }}
+                onMouseLeave={e => { if (!isActive) (e.currentTarget as HTMLElement).style.color = 'var(--text-muted)'; }}
+              >
+                {/* Step circle or grid icon */}
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${
+                  isActive
+                    ? 'bg-emerald-600 text-white shadow-md shadow-emerald-200'
+                    : 'text-gray-400'
+                }`}
+                  style={!isActive ? { background: 'var(--bg-elevated)' } : {}}>
+                  {step === null
+                    ? <LayoutGrid className="w-3.5 h-3.5" />
+                    : step === 'H'
+                      ? <History className="w-3.5 h-3.5" />
+                      : <span className="text-xs font-bold">{step}</span>
+                  }
+                </div>
+                {/* Label */}
+                <span className="hidden sm:inline text-[11px] font-semibold">{name}</span>
+                <span className="sm:hidden text-[11px] font-semibold">{shortName}</span>
+                {/* Count badge */}
+                <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
+                  isActive ? 'bg-emerald-100 text-emerald-700' : ''
+                }`}
+                  style={!isActive ? { background: 'var(--bg-elevated)', color: 'var(--text-subtle)' } : {}}>
+                  {count}
+                </span>
+                {/* Active underline */}
+                {isActive && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-emerald-500 rounded-full" />}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       {/* Toolbar */}
-      <div className="rounded-2xl border p-4 space-y-3"
-        style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
-        <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
+      <div className="rounded-2xl border" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
+        <div className="flex flex-col sm:flex-row gap-2 items-start sm:items-center px-4 py-3 border-b" style={{ borderColor: 'var(--border)' }}>
 
           {/* Search */}
           <div className="relative flex-1 min-w-[200px]">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: 'var(--text-subtle)' }} />
             <input value={search} onChange={e => setSearch(e.target.value)}
               placeholder="Search by client, lead no, phone…"
-              className="w-full h-10 pl-10 pr-8 text-sm rounded-xl border focus:outline-none focus:ring-2 focus:ring-emerald-100 dark:focus:ring-emerald-900/30 focus:border-emerald-400 transition-all"
+              className="w-full h-9 pl-9 pr-8 text-sm rounded-xl border focus:outline-none focus:ring-2 focus:ring-emerald-100 focus:border-emerald-400 transition-all"
               style={{ background: 'var(--bg-elevated)', borderColor: 'var(--border)', color: 'var(--text)' }} />
             {search && (
               <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 cursor-pointer" style={{ color: 'var(--text-subtle)' }}>
@@ -769,70 +1045,100 @@ export default function WorkflowBoard({ leads, onRefresh, syncConfig, activeTab:
             )}
           </div>
 
-          {/* Filter toggle */}
-          <button onClick={() => setShowFilters(v => !v)}
-            className={`h-10 px-4 rounded-xl text-xs font-semibold flex items-center gap-1.5 border transition-all cursor-pointer ${
-              showFilters || (empFilter || statusFilter || deptFilter)
-                ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 border-emerald-300 dark:border-emerald-700'
-                : 'border'
-            }`}
-            style={!showFilters && !(empFilter || statusFilter || deptFilter) ? { background: 'var(--bg-elevated)', borderColor: 'var(--border)', color: 'var(--text-muted)' } : {}}>
-            <Filter className="w-3.5 h-3.5" /> Filters
-            {(empFilter || statusFilter || deptFilter) && <span className="w-2 h-2 rounded-full bg-emerald-500" />}
-          </button>
+          {/* Controls row */}
+          <div className="flex items-center gap-2 flex-wrap">
 
-          {/* Column picker */}
-          <div className="relative">
-            <button onClick={() => setShowColMenu(v => !v)}
-              className="h-10 px-4 rounded-xl text-xs font-semibold flex items-center gap-1.5 border transition-all cursor-pointer"
-              style={{ background: 'var(--bg-elevated)', borderColor: 'var(--border)', color: 'var(--text-muted)' }}>
-              <Columns className="w-3.5 h-3.5" /> Columns ({activeCols.length})
+            {/* Filter toggle */}
+            <button onClick={() => setShowFilters(v => !v)}
+              className={`h-9 px-3 rounded-xl text-xs font-semibold flex items-center gap-1.5 border transition-all cursor-pointer ${
+                showFilters || (empFilter || statusFilter || deptFilter)
+                  ? 'bg-emerald-50 text-emerald-700 border-emerald-300'
+                  : ''
+              }`}
+              style={!showFilters && !(empFilter || statusFilter || deptFilter) ? { background: 'var(--bg-elevated)', borderColor: 'var(--border)', color: 'var(--text-muted)' } : {}}>
+              <Filter className="w-3.5 h-3.5" /> Filters
+              {(empFilter || statusFilter || deptFilter) && <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />}
             </button>
-            {showColMenu && (
-              <div className="absolute right-0 top-full mt-2 z-30 rounded-2xl shadow-xl p-4 w-80 max-h-96 overflow-y-auto animate-fade-in border"
-                style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
-                <div className="flex items-center justify-between mb-3">
-                  <span className="text-xs font-semibold uppercase tracking-widest" style={{ color: 'var(--text-muted)' }}>Toggle Columns</span>
-                  <button onClick={() => setShowColMenu(false)} className="cursor-pointer" style={{ color: 'var(--text-subtle)' }}><X className="w-4 h-4" /></button>
-                </div>
-                <div className="grid grid-cols-2 gap-1">
-                  {ALL_COLUMNS.map(c => (
-                    <label key={c.key} className="flex items-center gap-2 cursor-pointer p-1.5 rounded-lg transition-colors hover:bg-gray-50 dark:hover:bg-gray-700">
-                      <input type="checkbox" checked={visibleCols.has(c.key)} className="w-3.5 h-3.5 accent-emerald-600 rounded"
-                        onChange={() => setVisibleCols(prev => { const n = new Set(prev); n.has(c.key) ? n.delete(c.key) : n.add(c.key); return n; })} />
-                      <span className="text-xs truncate" style={{ color: 'var(--text)' }}>{c.label}</span>
-                      {c.step && <span className={`ml-auto text-[9px] px-1.5 py-0.5 rounded-full font-semibold border ${STEP_COLORS[c.step]}`}>S{c.step}</span>}
-                    </label>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
 
-          {/* Export buttons */}
-          <div className="flex items-center gap-2 sm:ml-auto">
-            <button onClick={handleExcel} title="Export Excel"
-              className="h-10 px-4 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all shadow-sm cursor-pointer">
-              <FileSpreadsheet className="w-3.5 h-3.5" /><span className="hidden sm:inline">Excel</span>
-            </button>
-            <button onClick={handleCSV} title="Export CSV"
-              className="h-10 px-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all shadow-sm cursor-pointer">
-              <FileText className="w-3.5 h-3.5" /><span className="hidden sm:inline">CSV</span>
-            </button>
-            <button onClick={handlePDF} disabled={exporting} title="Export PDF"
-              className="h-10 px-4 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all disabled:opacity-50 shadow-sm cursor-pointer">
-              <Download className="w-3.5 h-3.5" /><span className="hidden sm:inline">PDF</span>
-            </button>
-            <button onClick={() => window.print()} title="Print"
-              className="h-10 px-4 bg-slate-700 hover:bg-slate-800 text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all shadow-sm cursor-pointer">
-              <Printer className="w-3.5 h-3.5" />
-            </button>
+            {/* Column picker */}
+            <div className="relative">
+              <button onClick={() => setShowColMenu(v => !v)}
+                className="h-9 px-3 rounded-xl text-xs font-semibold flex items-center gap-1.5 border transition-all cursor-pointer"
+                style={{ background: 'var(--bg-elevated)', borderColor: 'var(--border)', color: 'var(--text-muted)' }}>
+                <Columns className="w-3.5 h-3.5" /> Columns
+                <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold" style={{ background: 'var(--bg-card)', color: 'var(--text-muted)' }}>{activeCols.length}</span>
+              </button>
+              {showColMenu && (
+                <div className="absolute right-0 top-full mt-2 z-30 rounded-2xl shadow-xl p-4 w-80 max-h-96 overflow-y-auto animate-fade-in border"
+                  style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-xs font-semibold uppercase tracking-widest" style={{ color: 'var(--text-muted)' }}>Toggle Columns</span>
+                    <button onClick={() => setShowColMenu(false)} className="cursor-pointer" style={{ color: 'var(--text-subtle)' }}><X className="w-4 h-4" /></button>
+                  </div>
+                  <div className="grid grid-cols-2 gap-1">
+                    {ALL_COLUMNS.map(c => (
+                      <label key={c.key} className="flex items-center gap-2 cursor-pointer p-1.5 rounded-lg transition-colors hover:bg-gray-50 dark:hover:bg-gray-700">
+                        <input type="checkbox" checked={visibleCols.has(c.key)} className="w-3.5 h-3.5 accent-emerald-600 rounded"
+                          onChange={() => setVisibleCols(prev => { const n = new Set(prev); n.has(c.key) ? n.delete(c.key) : n.add(c.key); return n; })} />
+                        <span className="text-xs truncate" style={{ color: 'var(--text)' }}>{c.label}</span>
+                        {c.step && <span className={`ml-auto text-[9px] px-1.5 py-0.5 rounded-full font-semibold border ${STEP_COLORS[c.step]}`}>S{c.step}</span>}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Divider */}
+            <div className="w-px h-6" style={{ background: 'var(--border)' }} />
+
+            {/* Single Export dropdown */}
+            <div className="relative">
+              <button
+                onClick={() => setShowExport(v => !v)}
+                title="Export data"
+                className="h-9 px-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all shadow-sm cursor-pointer">
+                <Download className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Export</span>
+                <ChevronDown className="w-3 h-3 opacity-70" />
+              </button>
+              {showExport && (
+                <div
+                  className="absolute right-0 top-full mt-2 z-30 rounded-xl shadow-xl border animate-fade-in overflow-hidden"
+                  style={{ background: 'var(--bg-card)', borderColor: 'var(--border)', minWidth: '140px' }}
+                >
+                  <button onClick={() => { handleExcel(); setShowExport(false); }}
+                    className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-semibold text-left transition-colors hover:bg-emerald-50"
+                    style={{ color: 'var(--text)' }}>
+                    <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600" /> Excel (.xlsx)
+                  </button>
+                  <div style={{ height: '1px', background: 'var(--border)' }} />
+                  <button onClick={() => { handleCSV(); setShowExport(false); }}
+                    className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-semibold text-left transition-colors hover:bg-emerald-50"
+                    style={{ color: 'var(--text)' }}>
+                    <FileText className="w-3.5 h-3.5 text-emerald-600" /> CSV (.csv)
+                  </button>
+                  <div style={{ height: '1px', background: 'var(--border)' }} />
+                  <button onClick={() => { handlePDF(); setShowExport(false); }} disabled={exporting}
+                    className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-semibold text-left transition-colors hover:bg-emerald-50 disabled:opacity-50"
+                    style={{ color: 'var(--text)' }}>
+                    <Printer className="w-3.5 h-3.5 text-emerald-600" /> PDF Report
+                  </button>
+                  <div style={{ height: '1px', background: 'var(--border)' }} />
+                  <button onClick={() => { window.print(); setShowExport(false); }}
+                    className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-semibold text-left transition-colors hover:bg-emerald-50"
+                    style={{ color: 'var(--text)' }}>
+                    <Printer className="w-3.5 h-3.5 text-emerald-600" /> Print
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
         {/* Filters */}
         {showFilters && (
-          <div className="flex flex-wrap gap-2 pt-3 border-t" style={{ borderColor: 'var(--border)' }}>
+          <div className="flex flex-wrap gap-2 px-4 py-3 border-t" style={{ borderColor: 'var(--border)', background: 'var(--bg-elevated)' }}>
             {[
               { value: empFilter,    onChange: setEmpFilter,    label: 'All Sales Persons', options: allEmployees.map(e => ({ value: e, label: e })) },
               { value: statusFilter, onChange: setStatusFilter, label: 'All Statuses', options: [
@@ -842,7 +1148,7 @@ export default function WorkflowBoard({ leads, onRefresh, syncConfig, activeTab:
               { value: deptFilter, onChange: setDeptFilter, label: 'All Work Types', options: allDepts.map(d => ({ value: d, label: d })) },
             ].map(({ value, onChange, label, options }) => (
               <select key={label} value={value} onChange={e => onChange(e.target.value)}
-                className="h-9 px-3 text-sm rounded-xl border focus:outline-none focus:ring-1 focus:ring-emerald-300 cursor-pointer appearance-none"
+                className="h-9 px-3 text-xs rounded-xl border focus:outline-none focus:ring-1 focus:ring-emerald-300 cursor-pointer"
                 style={selectStyle}>
                 <option value="">{label}</option>
                 {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
@@ -850,8 +1156,8 @@ export default function WorkflowBoard({ leads, onRefresh, syncConfig, activeTab:
             ))}
             {(empFilter || statusFilter || deptFilter) && (
               <button onClick={() => { setEmpFilter(''); setStatusFilter(''); setDeptFilter(''); }}
-                className="h-9 px-4 text-xs font-semibold text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-900/20 rounded-xl border border-rose-200 dark:border-rose-700 flex items-center gap-1.5 transition-colors cursor-pointer hover:bg-rose-100 dark:hover:bg-rose-900/30">
-                <X className="w-3.5 h-3.5" /> Clear
+                className="h-9 px-3 text-xs font-semibold text-rose-600 bg-rose-50 rounded-xl border border-rose-200 flex items-center gap-1.5 transition-colors cursor-pointer hover:bg-rose-100">
+                <X className="w-3.5 h-3.5" /> Clear all
               </button>
             )}
           </div>
@@ -909,21 +1215,27 @@ export default function WorkflowBoard({ leads, onRefresh, syncConfig, activeTab:
                     </div>
                   </td>
                 </tr>
-              ) : paged.map(lead => (
+              ) : paged.map((lead, idx) => (
                 <tr key={lead.leadNo}
-                  className="border-b transition-colors hover:bg-emerald-50/20 dark:hover:bg-emerald-900/10"
-                  style={{ borderColor: 'var(--border-subtle)' }}>
-                  <td className="px-4 py-3"><StatusBadge lead={lead} /></td>
-                  <td className="px-4 py-3"><ProgressBar lead={lead} /></td>
+                  className="border-b transition-colors cursor-pointer"
+                  style={{
+                    borderColor: 'var(--border-subtle)',
+                    background: idx % 2 === 0 ? 'var(--bg-card)' : 'var(--bg-elevated)',
+                  }}
+                  onMouseEnter={e => (e.currentTarget.style.background = 'rgba(16,185,129,0.06)')}
+                  onMouseLeave={e => (e.currentTarget.style.background = idx % 2 === 0 ? 'var(--bg-card)' : 'var(--bg-elevated)')}
+                >
+                  <td className="px-4 py-2.5"><StatusBadge lead={lead} /></td>
+                  <td className="px-4 py-2.5"><ProgressBar lead={lead} /></td>
                   {activeCols.map(c => (
-                    <td key={c.key} className="px-4 py-3 max-w-[200px]">
+                    <td key={c.key} className="px-4 py-2.5 max-w-[200px]">
                       <CellValue col={c} lead={lead} />
                     </td>
                   ))}
-                  <td className="px-4 py-3 text-center sticky right-0 z-5 backdrop-blur-sm" style={{ background: 'var(--bg-card)' }}>
+                  <td className="px-4 py-2.5 text-center sticky right-0 z-5" style={{ background: 'inherit' }}>
                     <button onClick={() => setModal(lead)}
-                      className="h-8 px-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-medium flex items-center gap-1.5 mx-auto transition-all shadow-sm cursor-pointer">
-                      <Eye className="w-3.5 h-3.5" /> View
+                      className="h-7 px-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold flex items-center gap-1 mx-auto transition-all shadow-sm cursor-pointer">
+                      <Eye className="w-3 h-3" /> View
                     </button>
                   </td>
                 </tr>
@@ -933,16 +1245,19 @@ export default function WorkflowBoard({ leads, onRefresh, syncConfig, activeTab:
         </div>
 
         {/* Pagination */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-5 py-4 border-t"
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-5 py-3 border-t"
           style={{ borderColor: 'var(--border)', background: 'var(--bg-elevated)' }}>
           <div className="flex items-center gap-3 text-xs flex-wrap" style={{ color: 'var(--text-muted)' }}>
             <span>
-              Showing <strong style={{ color: 'var(--text)' }}>{paged.length === 0 ? 0 : (page-1)*pageSize+1}–{Math.min(page*pageSize, filtered.length)}</strong> of <strong style={{ color: 'var(--text)' }}>{filtered.length}</strong> leads
+              <strong style={{ color: 'var(--text)' }}>{paged.length === 0 ? 0 : (page-1)*pageSize+1}–{Math.min(page*pageSize, filtered.length)}</strong>
+              {' '}of{' '}
+              <strong style={{ color: 'var(--text)' }}>{filtered.length}</strong>
+              {' '}leads
             </span>
             <select value={pageSize} onChange={e => { setPageSize(Number(e.target.value)); setPage(1); }}
-              className="h-8 px-2 text-xs rounded-lg border focus:outline-none focus:ring-1 focus:ring-emerald-300 cursor-pointer appearance-none"
+              className="h-7 px-2 text-xs rounded-lg border focus:outline-none focus:ring-1 focus:ring-emerald-300 cursor-pointer"
               style={selectStyle}>
-              {[10, 20, 50, 100].map(n => <option key={n} value={n}>{n} per page</option>)}
+              {[10, 20, 50, 100].map(n => <option key={n} value={n}>{n} / page</option>)}
             </select>
           </div>
           <div className="flex items-center gap-1">
@@ -991,7 +1306,9 @@ export default function WorkflowBoard({ leads, onRefresh, syncConfig, activeTab:
           onSave={handleSaveLead}
           onDelete={handleDeleteLead}
           onMarkComplete={handleMarkComplete}
+          onRevert={handleRevertLead}
           syncConfig={syncConfig}
+          activeTab={activeTab}
         />
       )}
     </div>

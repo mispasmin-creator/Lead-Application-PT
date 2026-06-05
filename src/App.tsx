@@ -1,22 +1,26 @@
 import React from 'react';
 import {
   getSyncConfig,
-  saveSyncConfig,
   getLeads,
   addLead,
-  deleteLead
+  deleteLead,
+  authenticateUser,
+  getSavedUser,
+  saveAuthUser,
+  clearAuthUser
 } from './utils/storage';
-import { Lead, SyncConfig, PageId, ActiveStepId } from './types';
+import { Lead, SyncConfig, PageId, ActiveStepId, UserAccount } from './types';
 import Sidebar from './components/Sidebar';
 import DashboardOverview from './components/DashboardOverview';
 import LeadForm from './components/LeadForm';
 import WorkflowBoard from './components/WorkflowBoard';
 import HistoryLog from './components/HistoryLog';
 import ClientDirectory from './components/ClientDirectory';
-import SheetsConnect from './components/SheetsConnect';
+import LoginPage from './components/LoginPage';
+import UserManagement from './components/UserManagement';
 import {
-  Loader2, RefreshCw, Wifi, WifiOff, X, CheckCircle,
-  AlertCircle, Bell, Sun, Moon, Search,
+  Loader2, X, CheckCircle,
+  AlertCircle, LogOut,
 } from 'lucide-react';
 
 const PAGE_LABELS: Record<PageId, string> = {
@@ -25,26 +29,154 @@ const PAGE_LABELS: Record<PageId, string> = {
   steps: 'Pipeline',
   logs: 'Activity Log',
   clients: 'Clients',
-  settings: 'Settings',
+  settings: 'User Management',
 };
 
+const ALL_PAGES = Object.keys(PAGE_LABELS) as PageId[];
+const PAGE_ACCESS_ALIASES: Record<PageId, string[]> = {
+  dashboard: ['dashboard'],
+  add: ['add', 'add lead'],
+  steps: ['steps', 'pipeline', 'workflow'],
+  logs: ['logs', 'activity log', 'history'],
+  clients: ['clients', 'client'],
+  settings: ['settings', 'users', 'user management'],
+};
+
+function getAllowedPages(user: UserAccount | null): PageId[] {
+  if (!user) return [];
+  const role = user.role.trim().toLowerCase();
+  const rawAccess = user.pageAccess.trim();
+  if (role === 'admin' || role === 'administrator' || !rawAccess || rawAccess.toLowerCase() === 'all') {
+    return ALL_PAGES;
+  }
+
+  const tokens = rawAccess
+    .split(/[,|;\n]/)
+    .map((token) => token.trim().toLowerCase())
+    .filter(Boolean);
+
+  const allowed = ALL_PAGES.filter((page) => {
+    const label = PAGE_LABELS[page].toLowerCase();
+    return tokens.includes(page.toLowerCase())
+      || tokens.includes(label)
+      || PAGE_ACCESS_ALIASES[page].some((alias) => tokens.includes(alias));
+  });
+
+  return allowed.length > 0 ? allowed : ALL_PAGES;
+}
+
+function getInitials(user: UserAccount | null): string {
+  const source = user?.username || user?.firmName || 'LF';
+  return source
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase())
+    .join('') || 'LF';
+}
+
+function getInitialRoute(): { page: PageId; tab: ActiveStepId | 'all' | 'history' } {
+  const path = window.location.pathname || '/dashboard';
+  if (path.startsWith('/pipeline/')) {
+    const tab = path.substring('/pipeline/'.length);
+    let activeTab: ActiveStepId | 'all' | 'history' = 'all';
+    if (tab === 'all') {
+      activeTab = 'all';
+    } else if (tab === 'history') {
+      activeTab = 'history';
+    } else {
+      const num = parseInt(tab, 10);
+      if (num >= 1 && num <= 5) {
+        activeTab = num as ActiveStepId;
+      }
+    }
+    return { page: 'steps', tab: activeTab };
+  } else if (path === '/pipeline' || path === '/steps') {
+    return { page: 'steps', tab: 'all' };
+  } else if (path === '/') {
+    return { page: 'dashboard', tab: 'all' };
+  } else {
+    const page = path.substring(1) as PageId;
+    const validPages: PageId[] = ['dashboard', 'add', 'steps', 'logs', 'clients', 'settings'];
+    if (validPages.includes(page)) {
+      return { page, tab: 'all' };
+    }
+    return { page: 'dashboard', tab: 'all' };
+  }
+}
+
 export default function App() {
-  const [syncConfig, setSyncConfig] = React.useState<SyncConfig>(getSyncConfig());
-  const [currentPage, setCurrentPage] = React.useState<PageId>('dashboard');
-  const [activeWorkflowTab, setActiveWorkflowTab] = React.useState<ActiveStepId | 'all'>('all');
+  const [syncConfig] = React.useState<SyncConfig>(getSyncConfig());
+  const [currentUser, setCurrentUser] = React.useState<UserAccount | null>(getSavedUser());
+  const initialRoute = getInitialRoute();
+  const [currentPage, setCurrentPage] = React.useState<PageId>(initialRoute.page);
+  const [activeWorkflowTab, setActiveWorkflowTab] = React.useState<ActiveStepId | 'all' | 'history'>(initialRoute.tab);
   const [leads, setLeads] = React.useState<Lead[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [refreshing, setRefreshing] = React.useState(false);
   const [globalToast, setGlobalToast] = React.useState<{ type: 'success' | 'error'; text: string } | null>(null);
-  const [darkMode, setDarkMode] = React.useState(() => {
-    const saved = localStorage.getItem('theme');
-    return saved ? saved === 'dark' : window.matchMedia('(prefers-color-scheme: dark)').matches;
-  });
 
   React.useEffect(() => {
-    document.documentElement.classList.toggle('dark', darkMode);
-    localStorage.setItem('theme', darkMode ? 'dark' : 'light');
-  }, [darkMode]);
+    document.documentElement.classList.remove('dark');
+    localStorage.setItem('theme', 'light');
+  }, []);
+
+  // Pathname-based URL Routing Effect (URL -> App State)
+  React.useEffect(() => {
+    const handlePathChange = () => {
+      const path = window.location.pathname || '/dashboard';
+      if (path.startsWith('/pipeline/')) {
+        const tab = path.substring('/pipeline/'.length);
+        setCurrentPage('steps');
+        if (tab === 'all') {
+          setActiveWorkflowTab('all');
+        } else if (tab === 'history') {
+          setActiveWorkflowTab('history');
+        } else {
+          const num = parseInt(tab, 10);
+          if (num >= 1 && num <= 5) {
+            setActiveWorkflowTab(num as ActiveStepId);
+          } else {
+            setActiveWorkflowTab('all');
+          }
+        }
+      } else if (path === '/pipeline' || path === '/steps') {
+        setCurrentPage('steps');
+        setActiveWorkflowTab('all');
+      } else if (path === '/') {
+        setCurrentPage('dashboard');
+      } else {
+        const page = path.substring(1) as PageId;
+        const validPages: PageId[] = ['dashboard', 'add', 'steps', 'logs', 'clients', 'settings'];
+        if (validPages.includes(page)) {
+          setCurrentPage(page);
+        } else {
+          setCurrentPage('dashboard');
+        }
+      }
+    };
+
+    handlePathChange();
+    window.addEventListener('popstate', handlePathChange);
+    return () => window.removeEventListener('popstate', handlePathChange);
+  }, []);
+
+  // App State -> URL Path Sync Effect
+  React.useEffect(() => {
+    let newPath = '';
+    if (currentPage === 'steps') {
+      newPath = `/pipeline/${activeWorkflowTab}`;
+    } else {
+      newPath = `/${currentPage}`;
+    }
+    if (window.location.pathname !== newPath) {
+      try {
+        window.history.pushState(null, '', newPath);
+      } catch (e) {
+        console.warn("Could not update URL pathname due to frame restrictions:", e);
+      }
+    }
+  }, [currentPage, activeWorkflowTab]);
 
   const fetchLeadsList = async (config = syncConfig, quiet = false) => {
     if (!quiet) setLoading(true);
@@ -60,18 +192,40 @@ export default function App() {
     }
   };
 
-  React.useEffect(() => { fetchLeadsList(); }, []);
+  const allowedPages = React.useMemo(() => getAllowedPages(currentUser), [currentUser]);
+
+  React.useEffect(() => {
+    if (!currentUser) {
+      setLoading(false);
+      return;
+    }
+    fetchLeadsList();
+  }, [currentUser]);
+
+  React.useEffect(() => {
+    if (currentUser && !allowedPages.includes(currentPage)) {
+      setCurrentPage(allowedPages[0] || 'dashboard');
+    }
+  }, [allowedPages, currentPage, currentUser]);
 
   const showToast = (type: 'success' | 'error', text: string) => {
     setGlobalToast({ type, text });
     setTimeout(() => setGlobalToast(null), 4500);
   };
 
-  const handleUpdateConfig = async (newConfig: SyncConfig) => {
-    saveSyncConfig(newConfig);
-    setSyncConfig(newConfig);
-    showToast('success', `Switched to ${newConfig.mode === 'live' ? 'Live Google Sheets' : 'Local Sandbox'}`);
-    await fetchLeadsList(newConfig);
+  const handleLogin = async (username: string, password: string) => {
+    const user = await authenticateUser(username, password, syncConfig);
+    saveAuthUser(user);
+    setCurrentUser(user);
+    setCurrentPage(getAllowedPages(user)[0] || 'dashboard');
+    showToast('success', `Welcome, ${user.username}!`);
+  };
+
+  const handleLogout = () => {
+    clearAuthUser();
+    setCurrentUser(null);
+    setLeads([]);
+    setCurrentPage('dashboard');
   };
 
   const handleCreateLead = async (newLead: Lead) => {
@@ -86,19 +240,17 @@ export default function App() {
     showToast('success', `Lead ${leadNo} deleted.`);
   };
 
-  const handleTestConnection = async (): Promise<boolean> => {
-    if (!syncConfig.appsScriptUrl) return false;
-    try {
-      const res = await fetch(syncConfig.appsScriptUrl, { method: 'GET', mode: 'cors' });
-      if (res.ok) {
-        const json = await res.json();
-        return json.status === 'success';
-      }
-      return false;
-    } catch { return false; }
+  const handleOptimisticUpdate = (leadNo: string, updatedFields: Partial<Lead>) => {
+    setLeads(prevLeads =>
+      prevLeads.map(l => (l.leadNo === leadNo ? { ...l, ...updatedFields } : l))
+    );
   };
 
   const renderPage = () => {
+    if (!allowedPages.includes(currentPage)) {
+      return <DashboardOverview leads={leads} onNavigate={setCurrentPage} />;
+    }
+
     switch (currentPage) {
       case 'dashboard':
         return <DashboardOverview leads={leads} onNavigate={setCurrentPage} />;
@@ -112,6 +264,7 @@ export default function App() {
             syncConfig={syncConfig}
             activeTab={activeWorkflowTab}
             setActiveTab={setActiveWorkflowTab}
+            onOptimisticUpdate={handleOptimisticUpdate}
           />
         );
       case 'logs':
@@ -119,19 +272,17 @@ export default function App() {
       case 'clients':
         return <ClientDirectory leads={leads} onDelete={handleDeleteLead} syncConfig={syncConfig} />;
       case 'settings':
-        return (
-          <SheetsConnect
-            syncConfig={syncConfig}
-            onUpdateConfig={handleUpdateConfig}
-            onTestConnection={handleTestConnection}
-          />
-        );
+        return currentUser ? <UserManagement syncConfig={syncConfig} currentUser={currentUser} /> : null;
       default:
         return <DashboardOverview leads={leads} onNavigate={setCurrentPage} />;
     }
   };
 
   const isLive = syncConfig.mode === 'live';
+
+  if (!currentUser) {
+    return <LoginPage syncConfig={syncConfig} onLogin={handleLogin} />;
+  }
 
   return (
     <div className={`flex flex-col lg:flex-row h-screen overflow-hidden font-sans antialiased transition-colors duration-300`}
@@ -141,10 +292,11 @@ export default function App() {
         currentPage={currentPage}
         setCurrentPage={setCurrentPage}
         syncConfig={syncConfig}
+        allowedPages={allowedPages}
+        currentUser={currentUser}
+        onLogout={handleLogout}
         activeWorkflowTab={activeWorkflowTab}
         setActiveWorkflowTab={setActiveWorkflowTab}
-        darkMode={darkMode}
-        onToggleDark={() => setDarkMode(d => !d)}
       />
 
       <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
@@ -163,64 +315,18 @@ export default function App() {
           {/* Right Actions */}
           <div className="flex items-center gap-2">
 
-            {/* Sync status badge */}
-            <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border transition-colors ${
-              isLive
-                ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-800'
-                : 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800'
-            }`}>
-              <span className={`w-1.5 h-1.5 rounded-full ${isLive ? 'bg-emerald-500 animate-pulse' : 'bg-amber-400'}`} />
-              {isLive ? <><Wifi className="w-3 h-3" /><span>Live</span></> : <><WifiOff className="w-3 h-3" /><span>Sandbox</span></>}
-            </div>
-
-            {refreshing && (
-              <span className="text-xs flex items-center gap-1" style={{ color: 'var(--text-muted)' }}>
-                <Loader2 className="w-3.5 h-3.5 animate-spin text-emerald-500" />
-                Syncing…
-              </span>
-            )}
-
-            {/* Refresh */}
             <button
-              onClick={() => fetchLeadsList(syncConfig, true)}
-              disabled={loading || refreshing}
-              className="h-8 px-3 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-all disabled:opacity-40 cursor-pointer border"
+              onClick={handleLogout}
+              className="h-8 px-3 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-all cursor-pointer border hover:bg-slate-50 dark:hover:bg-slate-700"
               style={{ background: 'var(--bg-card)', borderColor: 'var(--border)', color: 'var(--text)' }}
-              title="Refresh data"
+              title="Logout"
             >
-              <RefreshCw className={`w-3.5 h-3.5 text-emerald-500 ${refreshing ? 'animate-spin' : ''}`} />
-              Refresh
+              <LogOut className="w-3.5 h-3.5 text-rose-500" />
+              Logout
             </button>
 
-            {/* Notifications */}
-            <button
-              className="relative h-8 w-8 rounded-lg flex items-center justify-center border transition-colors cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700"
-              style={{ borderColor: 'var(--border)', color: 'var(--text-muted)' }}
-              title="Notifications"
-            >
-              <Bell className="w-4 h-4" />
-              {leads.filter(l => {
-                const age = (Date.now() - new Date(l.timestamp).getTime()) / 86_400_000;
-                const done = [1,2,3,4,5].filter(i => !!l[`actual${i}` as keyof Lead]).length;
-                return age > 7 && done < 2;
-              }).length > 0 && (
-                <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-rose-500 ring-2 ring-white dark:ring-gray-800" />
-              )}
-            </button>
-
-            {/* Dark mode toggle */}
-            <button
-              onClick={() => setDarkMode(d => !d)}
-              className="h-8 w-8 rounded-lg flex items-center justify-center border transition-all cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700"
-              style={{ borderColor: 'var(--border)', color: 'var(--text-muted)' }}
-              title={darkMode ? 'Switch to light mode' : 'Switch to dark mode'}
-            >
-              {darkMode ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4" />}
-            </button>
-
-            {/* User avatar */}
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-white text-xs font-bold shadow-sm cursor-pointer">
-              LF
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-white text-xs font-bold shadow-sm" title={currentUser.username}>
+              {getInitials(currentUser)}
             </div>
           </div>
         </header>

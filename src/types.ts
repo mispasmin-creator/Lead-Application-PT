@@ -55,6 +55,14 @@ export type ActiveStepId = 1 | 2 | 3 | 4 | 5;
 
 export type PageId = 'dashboard' | 'add' | 'steps' | 'logs' | 'clients' | 'settings';
 
+export interface UserAccount {
+  username: string;
+  password: string;
+  role: string;
+  firmName: string;
+  pageAccess: string;
+}
+
 export interface StepMetadata {
   id: ActiveStepId;
   name: string;

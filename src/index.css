@@ -40,7 +40,7 @@
   --bg-card:        #ffffff;
   --bg-elevated:    #f1f5f9;
   --text:           #0f172a;
-  --text-muted:     #64748b;
+  --text-muted:     #475569;
   --text-subtle:    #94a3b8;
   --border:         #e2e8f0;
   --border-subtle:  #f1f5f9;
@@ -48,32 +48,13 @@
   --primary-light:  #d1fae5;
   --primary-medium: #6ee7b7;
   --primary-dark:   #059669;
-  --sidebar-bg:     #0f172a;
-  --sidebar-text:   #cbd5e1;
-  --sidebar-active: #1e293b;
+  --sidebar-bg:     #ffffff;
+  --sidebar-text:   #475569;
+  --sidebar-active: #f1f5f9;
   --success:        #10b981;
   --warning:        #f59e0b;
   --danger:         #ef4444;
   --info:           #6366f1;
-}
-
-/* ─── Dark mode overrides ─────────────────────────────────────────────────── */
-.dark {
-  --bg:             #0f172a;
-  --bg-card:        #1e293b;
-  --bg-elevated:    #162032;
-  --text:           #f1f5f9;
-  --text-muted:     #94a3b8;
-  --text-subtle:    #64748b;
-  --border:         #1e293b;
-  --border-subtle:  #162032;
-  --primary:        #10b981;
-  --primary-light:  rgba(16, 185, 129, 0.12);
-  --primary-medium: #059669;
-  --primary-dark:   #34d399;
-  --sidebar-bg:     #0a1120;
-  --sidebar-text:   #94a3b8;
-  --sidebar-active: #1e293b;
 }
 
 /* ─── Base ────────────────────────────────────────────────────────────────── */
@@ -108,8 +89,6 @@ body {
   border-radius: 99px;
 }
 ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
-.dark ::-webkit-scrollbar-thumb { background: #334155; }
-.dark ::-webkit-scrollbar-thumb:hover { background: #475569; }
 
 /* ─── Focus ring ──────────────────────────────────────────────────────────── */
 input:focus-visible,
@@ -172,16 +151,24 @@ button:focus-visible {
 .toast-enter          { animation: toastIn 0.3s cubic-bezier(0.16,1,0.3,1) forwards; }
 .modal-content        { animation: modalIn 0.25s cubic-bezier(0.16,1,0.3,1) forwards; }
 
+/* ─── Modal overlay ───────────────────────────────────────────────────────── */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(15, 23, 42, 0.70);
+  padding: 16px;
+}
+
 /* ─── Skeleton loader ─────────────────────────────────────────────────────── */
 .skeleton {
   background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 37%, #f1f5f9 63%);
   background-size: 400px 100%;
   animation: shimmer 1.4s ease infinite;
   border-radius: 8px;
-}
-.dark .skeleton {
-  background: linear-gradient(90deg, #1e293b 25%, #162032 37%, #1e293b 63%);
-  background-size: 400px 100%;
 }
 
 /* ─── Input styles ────────────────────────────────────────────────────────── */
@@ -232,20 +219,12 @@ button:focus-visible {
 .badge-info     { background: #ede9fe; color: #5b21b6; border: 1px solid #ddd6fe; }
 .badge-neutral  { background: #f1f5f9; color: #334155; border: 1px solid #e2e8f0; }
 
-.dark .badge-success  { background: rgba(16,185,129,0.15); color: #6ee7b7; border-color: rgba(16,185,129,0.3); }
-.dark .badge-warning  { background: rgba(245,158,11,0.15);  color: #fcd34d; border-color: rgba(245,158,11,0.3); }
-.dark .badge-danger   { background: rgba(239,68,68,0.15);   color: #fca5a5; border-color: rgba(239,68,68,0.3); }
-.dark .badge-info     { background: rgba(99,102,241,0.15);  color: #a5b4fc; border-color: rgba(99,102,241,0.3); }
-.dark .badge-neutral  { background: rgba(100,116,139,0.15); color: #94a3b8; border-color: rgba(100,116,139,0.3); }
 
 /* ─── Glass card ──────────────────────────────────────────────────────────── */
 .glass-card {
   background: rgba(255,255,255,0.8);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-}
-.dark .glass-card {
-  background: rgba(30,41,59,0.85);
 }
 
 /* ─── Gradient text ───────────────────────────────────────────────────────── */

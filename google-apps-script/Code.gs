@@ -1,8 +1,6 @@
-export const googleAppsScriptCode = `/**
- * Google Apps Script for "Lead and Design Tracker" Workspace Integration
- * ----------------------------------------------------------------------
- * Place this code in Extensions > Apps Script of your Google Sheet.
- * Set the Sheet URL, Folder ID, and deploy as a Web App to connect live!
+/**
+ * Google Apps Script for LeadFlow
+ * Paste this into Extensions > Apps Script, then deploy as a Web App.
  */
 
 var SHEET_NAME = "Application";
@@ -447,4 +445,3 @@ function jsonpResponse(callback, data) {
   return ContentService.createTextOutput(callback + "(" + JSON.stringify(data) + ");")
     .setMimeType(ContentService.MimeType.JAVASCRIPT);
 }
-`;

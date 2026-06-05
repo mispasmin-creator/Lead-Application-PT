@@ -1,28 +1,29 @@
 import React from 'react';
 import {
   LayoutDashboard, PlusCircle, GitBranch, History,
-  Users, Settings, Menu, X, Wifi, WifiOff, Sun, Moon,
-  ChevronRight,
+  Users, Settings, Menu, X, Wifi, WifiOff,
+  ChevronRight, LogOut,
 } from 'lucide-react';
-import { SyncConfig, PageId, ActiveStepId } from '../types';
+import { SyncConfig, PageId, ActiveStepId, UserAccount } from '../types';
 
 interface SidebarProps {
   currentPage: PageId;
   setCurrentPage: (page: PageId) => void;
   syncConfig: SyncConfig;
-  activeWorkflowTab: ActiveStepId | 'all';
-  setActiveWorkflowTab: (tab: ActiveStepId | 'all') => void;
-  darkMode: boolean;
-  onToggleDark: () => void;
+  allowedPages: PageId[];
+  currentUser: UserAccount;
+  onLogout: () => void;
+  activeWorkflowTab: ActiveStepId | 'all' | 'history';
+  setActiveWorkflowTab: (tab: ActiveStepId | 'all' | 'history') => void;
 }
 
 const NAV_ITEMS = [
   { id: 'dashboard' as PageId, label: 'Dashboard',    icon: LayoutDashboard, accent: '#10b981' },
   { id: 'add'       as PageId, label: 'Add Lead',     icon: PlusCircle,      accent: '#6366f1' },
-  { id: 'steps'     as PageId, label: 'Pipeline',     icon: GitBranch,       accent: '#f59e0b' },
+  { id: 'steps'     as PageId, label: 'WorkFlow',     icon: GitBranch,       accent: '#f59e0b' },
   { id: 'logs'      as PageId, label: 'Activity Log', icon: History,         accent: '#06b6d4' },
   { id: 'clients'   as PageId, label: 'Clients',      icon: Users,           accent: '#a855f7' },
-  { id: 'settings'  as PageId, label: 'Settings',     icon: Settings,        accent: '#64748b' },
+  { id: 'settings'  as PageId, label: 'Users',        icon: Settings,        accent: '#64748b' },
 ];
 
 function Logo() {
@@ -43,16 +44,23 @@ function Logo() {
 
 export default function Sidebar({
   currentPage, setCurrentPage, syncConfig,
-  darkMode, onToggleDark,
+  allowedPages, currentUser, onLogout,
 }: SidebarProps) {
   const [menuOpen, setMenuOpen] = React.useState(false);
   const isLive = syncConfig.mode === 'live';
+  const visibleNavItems = NAV_ITEMS.filter((item) => allowedPages.includes(item.id));
+  const initials = (currentUser.username || currentUser.firmName || 'LF')
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase())
+    .join('') || 'LF';
 
   const navigate = (id: PageId) => { setCurrentPage(id); setMenuOpen(false); };
 
   const NavList = ({ compact = false }: { compact?: boolean }) => (
     <nav className={compact ? 'space-y-0.5' : 'space-y-1'}>
-      {NAV_ITEMS.map(({ id, label, icon: Icon, accent }) => {
+      {visibleNavItems.map(({ id, label, icon: Icon, accent }) => {
         const active = currentPage === id;
         return (
           <button
@@ -60,10 +68,10 @@ export default function Sidebar({
             onClick={() => navigate(id)}
             className={`group w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 cursor-pointer relative overflow-hidden ${
               active
-                ? 'text-white shadow-sm'
-                : 'hover:bg-white/5'
+                ? 'shadow-sm text-slate-900 font-semibold'
+                : 'hover:bg-slate-50'
             }`}
-            style={active ? { background: `${accent}22`, border: `1px solid ${accent}33` } : { border: '1px solid transparent' }}
+            style={active ? { background: `${accent}12`, border: `1px solid ${accent}22` } : { border: '1px solid transparent' }}
           >
             {active && (
               <div className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 rounded-full" style={{ background: accent }} />
@@ -71,10 +79,11 @@ export default function Sidebar({
             <div className={`w-7 h-7 rounded-lg flex items-center justify-center transition-all ${
               active ? 'shadow-sm' : 'group-hover:scale-110'
             }`}
-              style={active ? { background: `${accent}33` } : {}}>
-              <Icon className="w-4 h-4 transition-colors" style={{ color: active ? accent : '#94a3b8' }} />
+              style={active ? { background: `${accent}18` } : {}}
+            >
+              <Icon className="w-4 h-4 transition-colors" style={{ color: active ? accent : 'var(--text-subtle)' }} />
             </div>
-            <span className="flex-1 text-left" style={{ color: active ? '#f1f5f9' : '#94a3b8' }}>{label}</span>
+            <span className="flex-1 text-left" style={{ color: active ? 'var(--text)' : 'var(--sidebar-text)' }}>{label}</span>
             {active && <ChevronRight className="w-3.5 h-3.5 shrink-0" style={{ color: accent }} />}
           </button>
         );
@@ -90,22 +99,11 @@ export default function Sidebar({
         <div className="flex items-center gap-3">
           <Logo />
           <div>
-            <h1 className="font-bold text-base tracking-tight" style={{ color: 'var(--text)' }}>LeadFlow</h1>
-            <p className="text-[10px] -mt-0.5" style={{ color: 'var(--text-subtle)' }}>Design Pipeline</p>
+            <h1 className="font-bold text-base tracking-tight" style={{ color: 'var(--text)' }}>Lead Tracker</h1>
+            {/* <p className="text-[10px] -mt-0.5" style={{ color: 'var(--text-subtle)' }}>Design Pipeline</p> */}
           </div>
-          <span className={`ml-1 text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wide ${
-            isLive
-              ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400'
-              : 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400'
-          }`}>
-            {isLive ? 'Live' : 'Demo'}
-          </span>
         </div>
         <div className="flex items-center gap-2">
-          <button onClick={onToggleDark} className="p-2 rounded-lg transition-colors cursor-pointer"
-            style={{ color: 'var(--text-muted)' }}>
-            {darkMode ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4" />}
-          </button>
           <button onClick={() => setMenuOpen(!menuOpen)}
             className="p-2 rounded-lg transition-colors cursor-pointer"
             style={{ color: 'var(--text-muted)' }}>
@@ -118,31 +116,38 @@ export default function Sidebar({
       {menuOpen && (
         <div className="fixed inset-0 z-50 lg:hidden">
           <div className="fixed inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setMenuOpen(false)} />
-          <nav className="fixed top-0 bottom-0 left-0 w-72 max-w-[85vw] flex flex-col animate-slideInRight rounded-r-2xl overflow-hidden"
-            style={{ background: '#0f172a' }}>
-            <div className="flex items-center justify-between px-5 py-5 border-b border-white/5">
+          <nav className="fixed top-0 bottom-0 left-0 w-72 max-w-[85vw] flex flex-col animate-slideInRight rounded-r-2xl overflow-hidden border-r"
+            style={{ background: 'var(--sidebar-bg)', borderColor: 'var(--border)' }}>
+            <div className="flex items-center justify-between px-5 py-5 border-b" style={{ borderColor: 'var(--border)' }}>
               <div className="flex items-center gap-3">
                 <Logo />
                 <div>
-                  <p className="font-bold text-white text-base">LeadFlow</p>
-                  <p className="text-xs text-slate-400">Design Tracker</p>
+                  <p className="font-bold text-slate-900 text-base" style={{ color: 'var(--text)' }}>Lead Tracker</p>
+                  {/* <p className="text-xs text-slate-500" style={{ color: 'var(--text-muted)' }}>Design Tracker</p> */}
                 </div>
               </div>
-              <button onClick={() => setMenuOpen(false)} className="p-1.5 text-slate-400 hover:text-white hover:bg-white/10 rounded-lg cursor-pointer transition-colors">
+              <button onClick={() => setMenuOpen(false)} className="p-1.5 text-slate-500 hover:text-slate-900 hover:bg-slate-100 rounded-lg cursor-pointer transition-colors">
                 <X className="w-4 h-4" />
               </button>
             </div>
             <div className="flex-1 overflow-y-auto p-4">
               <NavList />
             </div>
-            <div className="p-4 border-t border-white/5">
-              <div className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-semibold ${
-                isLive ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
+            <div className="p-4 border-t" style={{ borderColor: 'var(--border)' }}>
+              <div className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-semibold border ${
+                isLive ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-amber-50 text-amber-700 border-amber-200'
               }`}>
                 <div className={`w-2 h-2 rounded-full ${isLive ? 'bg-emerald-500 animate-pulse' : 'bg-amber-400'}`} />
-                {isLive ? <Wifi className="w-3.5 h-3.5" /> : <WifiOff className="w-3.5 h-3.5" />}
+                {isLive ? <Wifi className="w-3.5 h-3.5 text-emerald-600" /> : <WifiOff className="w-3.5 h-3.5 text-amber-600" />}
                 <span>{isLive ? 'Live Sync Active' : 'Sandbox Mode'}</span>
               </div>
+              <button
+                onClick={onLogout}
+                className="mt-2 w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-semibold text-rose-700 bg-rose-50 border border-rose-200 hover:bg-rose-100 cursor-pointer transition-all"
+              >
+                <LogOut className="w-3.5 h-3.5" />
+                Logout
+              </button>
             </div>
           </nav>
         </div>
@@ -150,53 +155,52 @@ export default function Sidebar({
 
       {/* ── Desktop sidebar ─────────────────────────────────────────────────── */}
       <aside className="hidden lg:flex flex-col shrink-0 w-60 h-screen sticky top-0 border-r"
-        style={{ background: 'var(--sidebar-bg)', borderColor: 'rgba(255,255,255,0.05)' }}>
+        style={{ background: 'var(--sidebar-bg)', borderColor: 'var(--border)' }}>
 
         {/* Logo */}
-        <div className="flex items-center gap-3 px-5 py-5 border-b" style={{ borderColor: 'rgba(255,255,255,0.05)' }}>
+        <div className="flex items-center gap-3 px-5 py-5 border-b" style={{ borderColor: 'var(--border)' }}>
           <Logo />
           <div>
-            <h1 className="font-bold text-white text-lg tracking-tight leading-none">LeadFlow</h1>
-            <p className="text-[10px] text-slate-400 mt-0.5">Design Pipeline</p>
+            <h1 className="font-bold text-slate-900 text-lg tracking-tight leading-none" style={{ color: 'var(--text)' }}>Lead Tracker</h1>
+            {/* <p className="text-[10px] text-slate-500 mt-0.5" style={{ color: 'var(--text-muted)' }}>Design Pipeline</p> */}
           </div>
         </div>
 
         {/* Nav */}
         <div className="flex-1 overflow-y-auto p-3 pt-4">
-          <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-500 px-3 mb-3">Navigation</p>
+          {/* <p className="text-[10px] font-semibold uppercase tracking-widest px-3 mb-3" style={{ color: 'var(--text-subtle)' }}>Navigation</p> */}
           <NavList />
         </div>
 
         {/* Footer */}
-        <div className="p-3 space-y-2 border-t" style={{ borderColor: 'rgba(255,255,255,0.05)' }}>
+        <div className="p-3 space-y-2 border-t" style={{ borderColor: 'var(--border)' }}>
           {/* Sync mode */}
-          <div className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-semibold transition-all ${
+          <div className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-semibold border transition-all ${
             isLive
-              ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-              : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
+              ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+              : 'bg-amber-50 text-amber-700 border-amber-200'
           }`}>
-            <div className={`w-1.5 h-1.5 rounded-full ${isLive ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}`} />
-            {isLive ? <Wifi className="w-3.5 h-3.5" /> : <WifiOff className="w-3.5 h-3.5" />}
+            <div className={`w-1.5 h-1.5 rounded-full ${isLive ? 'bg-emerald-500 animate-pulse' : 'bg-amber-400'}`} />
+            {isLive ? <Wifi className="w-3.5 h-3.5 text-emerald-600" /> : <WifiOff className="w-3.5 h-3.5 text-amber-600" />}
             <span>{isLive ? 'Live Sync' : 'Sandbox Mode'}</span>
           </div>
 
-          {/* Dark mode toggle + user */}
-          <div className="flex items-center justify-between px-1">
-            <div className="flex items-center gap-2">
-              <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-white text-[10px] font-bold">
-                LF
+          {/* User profile */}
+          <div className="flex items-center justify-between px-1 pt-1">
+            <div className="flex items-center gap-2 min-w-0">
+              <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-white text-[10px] font-bold shrink-0">
+                {initials}
               </div>
-              <span className="text-xs font-medium text-slate-400">LeadFlow Pro</span>
+              <span className="text-xs font-semibold truncate max-w-28" style={{ color: 'var(--text)' }} title={currentUser.username}>
+                {currentUser.username}
+              </span>
             </div>
             <button
-              onClick={onToggleDark}
-              className="w-7 h-7 rounded-lg flex items-center justify-center transition-all cursor-pointer hover:bg-white/10"
-              title={darkMode ? 'Light mode' : 'Dark mode'}
+              onClick={onLogout}
+              className="w-7 h-7 rounded-lg flex items-center justify-center transition-all cursor-pointer hover:bg-slate-100 shrink-0"
+              title="Logout"
             >
-              {darkMode
-                ? <Sun className="w-3.5 h-3.5 text-amber-400" />
-                : <Moon className="w-3.5 h-3.5 text-slate-400" />
-              }
+              <LogOut className="w-3.5 h-3.5 text-rose-500" />
             </button>
           </div>
         </div>
@@ -206,7 +210,7 @@ export default function Sidebar({
       <nav className="lg:hidden fixed bottom-0 inset-x-0 z-40 border-t transition-colors"
         style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
         <div className="flex items-center justify-around py-1.5 px-1 safe-bottom">
-          {NAV_ITEMS.slice(0, 5).map(({ id, label, icon: Icon, accent }) => {
+          {visibleNavItems.slice(0, 5).map(({ id, label, icon: Icon, accent }) => {
             const active = currentPage === id;
             return (
               <button
@@ -222,16 +226,18 @@ export default function Sidebar({
               </button>
             );
           })}
-          <button
-            onClick={() => setCurrentPage('settings')}
-            className="flex flex-col items-center gap-0.5 px-2 py-1.5 rounded-xl transition-all duration-200 cursor-pointer min-w-[52px]"
-            style={currentPage === 'settings' ? { background: '#64748b15' } : {}}
-          >
-            <Settings className="w-5 h-5" style={{ color: currentPage === 'settings' ? '#64748b' : 'var(--text-subtle)' }} />
-            <span className="text-[9px] font-semibold" style={{ color: currentPage === 'settings' ? '#64748b' : 'var(--text-subtle)' }}>
-              Settings
-            </span>
-          </button>
+          {allowedPages.includes('settings') && !visibleNavItems.slice(0, 5).some((item) => item.id === 'settings') && (
+            <button
+              onClick={() => setCurrentPage('settings')}
+              className="flex flex-col items-center gap-0.5 px-2 py-1.5 rounded-xl transition-all duration-200 cursor-pointer min-w-[52px]"
+              style={currentPage === 'settings' ? { background: '#64748b15' } : {}}
+            >
+              <Settings className="w-5 h-5" style={{ color: currentPage === 'settings' ? '#64748b' : 'var(--text-subtle)' }} />
+              <span className="text-[9px] font-semibold" style={{ color: currentPage === 'settings' ? '#64748b' : 'var(--text-subtle)' }}>
+                Users
+              </span>
+            </button>
+          )}
         </div>
       </nav>
     </>
