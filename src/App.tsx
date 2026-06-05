@@ -1,6 +1,7 @@
 import React from 'react';
 import {
   getSyncConfig,
+  saveSyncConfig,
   getLeads,
   addLead,
   deleteLead,
@@ -106,7 +107,7 @@ function getInitialRoute(): { page: PageId; tab: ActiveStepId | 'all' | 'history
 }
 
 export default function App() {
-  const [syncConfig] = React.useState<SyncConfig>(getSyncConfig());
+  const [syncConfig, setSyncConfig] = React.useState<SyncConfig>(getSyncConfig());
   const [currentUser, setCurrentUser] = React.useState<UserAccount | null>(getSavedUser());
   const initialRoute = getInitialRoute();
   const [currentPage, setCurrentPage] = React.useState<PageId>(initialRoute.page);
@@ -213,6 +214,11 @@ export default function App() {
     setTimeout(() => setGlobalToast(null), 4500);
   };
 
+  const handleUpdateConfig = (config: SyncConfig) => {
+    saveSyncConfig(config);
+    setSyncConfig(config);
+  };
+
   const handleLogin = async (username: string, password: string) => {
     const user = await authenticateUser(username, password, syncConfig);
     saveAuthUser(user);
@@ -281,7 +287,7 @@ export default function App() {
   const isLive = syncConfig.mode === 'live';
 
   if (!currentUser) {
-    return <LoginPage syncConfig={syncConfig} onLogin={handleLogin} />;
+    return <LoginPage syncConfig={syncConfig} onLogin={handleLogin} onUpdateConfig={handleUpdateConfig} />;
   }
 
   return (
