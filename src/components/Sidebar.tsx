@@ -2,9 +2,10 @@ import React from 'react';
 import {
   LayoutDashboard, PlusCircle, GitBranch, History,
   Users, Settings, Menu, X, Wifi, WifiOff,
-  ChevronRight, LogOut,
+  ChevronRight, LogOut, Sun, Moon,
 } from 'lucide-react';
 import { SyncConfig, PageId, ActiveStepId, UserAccount } from '../types';
+import { Theme } from '../hooks/useTheme';
 
 interface SidebarProps {
   currentPage: PageId;
@@ -15,6 +16,8 @@ interface SidebarProps {
   onLogout: () => void;
   activeWorkflowTab: ActiveStepId | 'all' | 'history';
   setActiveWorkflowTab: (tab: ActiveStepId | 'all' | 'history') => void;
+  theme: Theme;
+  onToggleTheme: () => void;
 }
 
 const NAV_ITEMS = [
@@ -45,6 +48,7 @@ function Logo() {
 export default function Sidebar({
   currentPage, setCurrentPage, syncConfig,
   allowedPages, currentUser, onLogout,
+  theme, onToggleTheme,
 }: SidebarProps) {
   const [menuOpen, setMenuOpen] = React.useState(false);
   const isLive = syncConfig.mode === 'live';
@@ -104,6 +108,12 @@ export default function Sidebar({
           </div>
         </div>
         <div className="flex items-center gap-2">
+          <button onClick={onToggleTheme}
+            className="p-2 rounded-lg transition-colors cursor-pointer"
+            style={{ color: 'var(--text-muted)' }}
+            title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}>
+            {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+          </button>
           <button onClick={() => setMenuOpen(!menuOpen)}
             className="p-2 rounded-lg transition-colors cursor-pointer"
             style={{ color: 'var(--text-muted)' }}>
@@ -134,6 +144,14 @@ export default function Sidebar({
               <NavList />
             </div>
             <div className="p-4 border-t" style={{ borderColor: 'var(--border)' }}>
+              <button
+                onClick={onToggleTheme}
+                className="mb-2 w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-semibold border cursor-pointer transition-all"
+                style={{ color: 'var(--text)', borderColor: 'var(--border)', background: 'var(--bg-elevated)' }}
+              >
+                {theme === 'dark' ? <Sun className="w-3.5 h-3.5" /> : <Moon className="w-3.5 h-3.5" />}
+                {theme === 'dark' ? 'Light Mode' : 'Dark Mode'}
+              </button>
               <div className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-semibold border ${
                 isLive ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-amber-50 text-amber-700 border-amber-200'
               }`}>
@@ -174,6 +192,16 @@ export default function Sidebar({
 
         {/* Footer */}
         <div className="p-3 space-y-2 border-t" style={{ borderColor: 'var(--border)' }}>
+          {/* Theme toggle */}
+          <button
+            onClick={onToggleTheme}
+            className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-semibold border cursor-pointer transition-all"
+            style={{ color: 'var(--text)', borderColor: 'var(--border)', background: 'var(--bg-elevated)' }}
+          >
+            {theme === 'dark' ? <Sun className="w-3.5 h-3.5" /> : <Moon className="w-3.5 h-3.5" />}
+            {theme === 'dark' ? 'Light Mode' : 'Dark Mode'}
+          </button>
+
           {/* Sync mode */}
           <div className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-semibold border transition-all ${
             isLive

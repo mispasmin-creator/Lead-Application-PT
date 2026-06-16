@@ -79,15 +79,17 @@ const DEFAULT_VISIBLE = new Set<keyof Lead>([
   'leadSource', 'salesPerson', 'attachFile',
 ]);
 
-const STEP_COLORS: Record<number, string> = {
-  1: 'bg-purple-100 text-purple-700 border-purple-200 dark:bg-purple-900/30 dark:text-purple-400 dark:border-purple-700',
-  2: 'bg-cyan-100 text-cyan-700 border-cyan-200 dark:bg-cyan-900/30 dark:text-cyan-400 dark:border-cyan-700',
-  3: 'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-700',
-  4: 'bg-rose-100 text-rose-700 border-rose-200 dark:bg-rose-900/30 dark:text-rose-400 dark:border-rose-700',
-  5: 'bg-indigo-100 text-indigo-700 border-indigo-200 dark:bg-indigo-900/30 dark:text-indigo-400 dark:border-indigo-700',
-};
+// Single-hue emerald progression — each step a shade darker, so the
+// sequence itself reads as advancement instead of five unrelated colors.
+const STEP_ACCENT: Record<number, string> = { 1: '#6ee7b7', 2: '#34d399', 3: '#10b981', 4: '#059669', 5: '#047857' };
 
-const STEP_ACCENT: Record<number, string> = { 1: '#a855f7', 2: '#06b6d4', 3: '#f59e0b', 4: '#f43f5e', 5: '#6366f1' };
+const StepBadge = ({ step }: { step: number }) => (
+  <span className="inline-flex items-center gap-1.5 text-[10px] font-bold px-2 py-0.5 rounded-full border"
+    style={{ background: 'var(--bg-elevated)', borderColor: 'var(--border)', color: 'var(--text-muted)' }}>
+    <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: STEP_ACCENT[step] }} />
+    S{step}
+  </span>
+);
 
 const getCompletedSteps = (l: Lead) =>
   [1,2,3,4,5].filter(i => !!l[`actual${i}` as keyof Lead]).length;
@@ -439,7 +441,7 @@ function ActionModal({ lead, onClose, onSave, onDelete, onMarkComplete, onRevert
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-3">
                     <div className="w-8 h-8 rounded-xl flex items-center justify-center text-white text-xs font-bold shadow-sm"
-                      style={{ background: !!lead[`actual${activeTab}` as keyof Lead] ? '#10b981' : !!lead[`planned${activeTab}` as keyof Lead] ? '#f59e0b' : STEP_ACCENT[activeTab] }}>
+                      style={{ background: !!lead[`actual${activeTab}` as keyof Lead] ? 'var(--success)' : !!lead[`planned${activeTab}` as keyof Lead] ? 'var(--warning)' : STEP_ACCENT[activeTab] }}>
                       {activeTab}
                     </div>
                     <span className="text-base font-semibold" style={{ color: 'var(--text)' }}>
@@ -558,13 +560,13 @@ function ActionModal({ lead, onClose, onSave, onDelete, onMarkComplete, onRevert
                         done ? 'border-emerald-200 dark:border-emerald-700' :
                         pend ? 'border-amber-200 dark:border-amber-700' : ''
                       }`}
-                        style={!done && !pend ? { background: 'var(--bg-elevated)', borderColor: 'var(--border)' } :
-                          done ? { background: 'var(--bg-card)', borderColor: '' } :
-                          { background: 'var(--bg-card)', borderColor: '' }}>
+                        style={!done && !pend
+                          ? { background: 'var(--bg-elevated)', borderColor: 'var(--border)' }
+                          : { background: 'var(--bg-card)' }}>
                         <div className="flex items-center justify-between mb-4">
                           <div className="flex items-center gap-3">
                             <div className="w-8 h-8 rounded-xl flex items-center justify-center text-white text-sm font-bold shadow-sm"
-                              style={{ background: done ? '#10b981' : pend ? '#f59e0b' : STEP_ACCENT[i] }}>
+                              style={{ background: done ? 'var(--success)' : pend ? 'var(--warning)' : STEP_ACCENT[i] }}>
                               {i}
                             </div>
                             <span className={`text-base font-semibold ${
@@ -943,11 +945,11 @@ export default function WorkflowBoard({ leads, onRefresh, syncConfig, activeTab:
       {/* Stats */}
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
         {[
-          { icon: <LayoutGrid className="w-4 h-4 text-slate-500" />,       iconBg: 'bg-slate-100',   label: 'Total Leads', value: stats.total,     color: 'var(--text)',  bar: '#64748b' },
-          { icon: <CheckCircle2 className="w-4 h-4 text-emerald-600" />,   iconBg: 'bg-emerald-100', label: 'Completed',   value: stats.completed, color: '#059669',      bar: '#10b981' },
-          { icon: <Clock className="w-4 h-4 text-amber-600" />,             iconBg: 'bg-amber-100',   label: 'Pending',     value: stats.pending,   color: '#d97706',      bar: '#f59e0b' },
-          { icon: <AlertTriangle className="w-4 h-4 text-rose-600" />,      iconBg: 'bg-rose-100',    label: 'Delayed',     value: stats.delayed,   color: '#e11d48',      bar: '#f43f5e' },
-          { icon: <Calendar className="w-4 h-4 text-indigo-600" />,         iconBg: 'bg-indigo-100',  label: 'Added Today', value: stats.today,     color: '#4f46e5',      bar: '#6366f1' },
+          { icon: <LayoutGrid className="w-4 h-4 text-slate-500 dark:text-slate-400" />,        iconBg: 'bg-slate-100 dark:bg-slate-700/40',    label: 'Total Leads', value: stats.total,     color: 'var(--text)',    bar: 'var(--text-subtle)' },
+          { icon: <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />,  iconBg: 'bg-emerald-100 dark:bg-emerald-900/30', label: 'Completed',   value: stats.completed, color: 'var(--success)', bar: 'var(--success)' },
+          { icon: <Clock className="w-4 h-4 text-amber-600 dark:text-amber-400" />,              iconBg: 'bg-amber-100 dark:bg-amber-900/30',     label: 'Pending',     value: stats.pending,   color: 'var(--warning)', bar: 'var(--warning)' },
+          { icon: <AlertTriangle className="w-4 h-4 text-rose-600 dark:text-rose-400" />,        iconBg: 'bg-rose-100 dark:bg-rose-900/30',       label: 'Delayed',     value: stats.delayed,   color: 'var(--danger)',  bar: 'var(--danger)' },
+          { icon: <Calendar className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />,         iconBg: 'bg-indigo-100 dark:bg-indigo-900/30',   label: 'Added Today', value: stats.today,     color: 'var(--info)',    bar: 'var(--info)' },
         ].map(s => (
           <div key={s.label}
             className="rounded-2xl border p-4 flex items-center gap-3 hover:shadow-md transition-all group relative overflow-hidden"
@@ -989,10 +991,10 @@ export default function WorkflowBoard({ leads, onRefresh, syncConfig, activeTab:
               <button key={id} onClick={() => setActiveTab(id as ActiveStepId | 'all' | 'history')}
                 className="relative flex flex-col items-center gap-1 px-6 py-3 text-xs font-semibold whitespace-nowrap transition-all cursor-pointer shrink-0"
                 style={isActive
-                  ? { color: '#059669' }
+                  ? { color: 'var(--primary-dark)' }
                   : { color: 'var(--text-muted)' }
                 }
-                onMouseEnter={e => { if (!isActive) (e.currentTarget as HTMLElement).style.color = '#059669'; }}
+                onMouseEnter={e => { if (!isActive) (e.currentTarget as HTMLElement).style.color = 'var(--primary-dark)'; }}
                 onMouseLeave={e => { if (!isActive) (e.currentTarget as HTMLElement).style.color = 'var(--text-muted)'; }}
               >
                 {/* Step circle or grid icon */}
@@ -1081,7 +1083,7 @@ export default function WorkflowBoard({ leads, onRefresh, syncConfig, activeTab:
                         <input type="checkbox" checked={visibleCols.has(c.key)} className="w-3.5 h-3.5 accent-emerald-600 rounded"
                           onChange={() => setVisibleCols(prev => { const n = new Set(prev); n.has(c.key) ? n.delete(c.key) : n.add(c.key); return n; })} />
                         <span className="text-xs truncate" style={{ color: 'var(--text)' }}>{c.label}</span>
-                        {c.step && <span className={`ml-auto text-[9px] px-1.5 py-0.5 rounded-full font-semibold border ${STEP_COLORS[c.step]}`}>S{c.step}</span>}
+                        {c.step && <span className="ml-auto"><StepBadge step={c.step} /></span>}
                       </label>
                     ))}
                   </div>
@@ -1165,7 +1167,7 @@ export default function WorkflowBoard({ leads, onRefresh, syncConfig, activeTab:
       </div>
 
       {/* Table */}
-      <div className="rounded-2xl border overflow-hidden" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
+      <div className="rounded-2xl border overflow-hidden shadow-sm" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs border-collapse" style={{ minWidth: `${Math.max(1000, activeCols.length * 130 + 280)}px` }}>
             {activeCols.some(c => c.step) && (
@@ -1174,8 +1176,8 @@ export default function WorkflowBoard({ leads, onRefresh, syncConfig, activeTab:
                   <th colSpan={2} />
                   {activeCols.map(c => (
                     !c.step ? <th key={c.key} /> :
-                    <th key={c.key} className="px-4 py-2 border-x" style={{ borderColor: 'var(--border)' }}>
-                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${STEP_COLORS[c.step]}`}>S{c.step}</span>
+                    <th key={c.key} className="px-4 py-2 border-x text-center" style={{ borderColor: 'var(--border)' }}>
+                      <StepBadge step={c.step} />
                     </th>
                   ))}
                   <th />

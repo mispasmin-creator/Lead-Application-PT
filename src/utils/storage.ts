@@ -17,9 +17,13 @@ let sheetHeadersCache: string[] = (() => {
   }
 })();
 
-const ENV_APPS_SCRIPT_URL = (import.meta as any).env.VITE_APPS_SCRIPT_URL as
-  | string
-  | undefined;
+// Fallback Apps Script Web App URL used when no VITE_APPS_SCRIPT_URL env var is set,
+// so the login page doesn't show the "Connect Google Sheet" setup prompt.
+const FALLBACK_APPS_SCRIPT_URL =
+  "https://script.google.com/macros/s/AKfycbzBEAw0-pP2cyqBqB5rGmBBZDS8KhwDVNLTEtl0vAGpTBwA4ip8twfkdaD6fC1a8FgaLQ/exec";
+
+const ENV_APPS_SCRIPT_URL = ((import.meta as any).env.VITE_APPS_SCRIPT_URL ||
+  FALLBACK_APPS_SCRIPT_URL) as string;
 const ENV_SHEET_ID = (import.meta as any).env.VITE_SHEET_ID as
   | string
   | undefined;
@@ -123,9 +127,8 @@ export const KEY_TO_HEADER_MAP: Record<keyof Lead, string> = {
 };
 
 export function getSyncConfig(): SyncConfig {
-  const envUrl = (import.meta as any).env.VITE_APPS_SCRIPT_URL as
-    | string
-    | undefined;
+  const envUrl = ((import.meta as any).env.VITE_APPS_SCRIPT_URL ||
+    FALLBACK_APPS_SCRIPT_URL) as string;
   const envSheetId = (import.meta as any).env.VITE_SHEET_ID as
     | string
     | undefined;
