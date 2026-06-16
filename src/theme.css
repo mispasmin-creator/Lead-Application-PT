@@ -1,0 +1,57 @@
+/* ============================================================================
+   THEME TOKENS
+   Layered CSS variables — Brand → Feedback → Surface — mapped for both
+   default (light) and dark mode. Apply the `dark` class to <html> to switch.
+   ============================================================================ */
+
+:root {
+  /* ── Brand layer ──────────────────────────────────────────────────────── */
+  --primary-color:        #10b981;
+  --primary-color-light:  #d1fae5;
+  --primary-color-medium: #6ee7b7;
+  --primary-color-dark:   #059669;
+
+  /* ── Feedback layer ───────────────────────────────────────────────────── */
+  --success: #10b981;
+  --warning: #f59e0b;
+  --danger:  #ef4444;
+  --info:    #6366f1;
+
+  /* ── Surface layer ────────────────────────────────────────────────────── */
+  --background-color:    #f8fafc;
+  --surface-color:        #ffffff;
+  --surface-color-raised: #f1f5f9;
+  --border-color:         #e2e8f0;
+  --border-color-subtle:  #f1f5f9;
+
+  /* ── Text (sits on the Surface layer) ─────────────────────────────────── */
+  --text-primary: #0f172a;
+  --text-muted:   #475569;
+  --text-subtle:  #94a3b8;
+}
+
+.dark {
+  /* ── Brand layer ──────────────────────────────────────────────────────── */
+  --primary-color:        #34d399;
+  --primary-color-light:  #064e3b;
+  --primary-color-medium: #047857;
+  --primary-color-dark:   #6ee7b7;
+
+  /* ── Feedback layer ───────────────────────────────────────────────────── */
+  --success: #34d399;
+  --warning: #fbbf24;
+  --danger:  #f87171;
+  --info:    #818cf8;
+
+  /* ── Surface layer ────────────────────────────────────────────────────── */
+  --background-color:    #0f172a;
+  --surface-color:        #1e293b;
+  --surface-color-raised: #334155;
+  --border-color:         #334155;
+  --border-color-subtle:  #1e293b;
+
+  /* ── Text (sits on the Surface layer) ─────────────────────────────────── */
+  --text-primary: #f8fafc;
+  --text-muted:   #cbd5e1;
+  --text-subtle:  #64748b;
+}
