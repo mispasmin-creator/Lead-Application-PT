@@ -1,23 +1,9 @@
-import React from "react";
-
-export type Theme = "light" | "dark";
-
-const THEME_KEY = "theme";
-
-function getInitialTheme(): Theme {
-  const stored = localStorage.getItem(THEME_KEY);
-  return stored === "dark" ? "dark" : "light";
-}
+export type Theme = "light";
 
 export function useTheme() {
-  const [theme, setTheme] = React.useState<Theme>(getInitialTheme);
-
-  React.useEffect(() => {
-    document.documentElement.classList.toggle("dark", theme === "dark");
-    localStorage.setItem(THEME_KEY, theme);
-  }, [theme]);
-
-  const toggleTheme = () => setTheme((current) => (current === "dark" ? "light" : "dark"));
-
-  return { theme, toggleTheme };
+  // Dark mode removed — always light
+  if (typeof document !== "undefined") {
+    document.documentElement.classList.remove("dark");
+  }
+  return { theme: "light" as Theme };
 }

@@ -11,7 +11,6 @@ import {
   clearAuthUser
 } from './utils/storage';
 import { Lead, SyncConfig, PageId, ActiveStepId, UserAccount } from './types';
-import { useTheme } from './hooks/useTheme';
 import Sidebar from './components/Sidebar';
 import DashboardOverview from './components/DashboardOverview';
 import LeadForm from './components/LeadForm';
@@ -117,7 +116,6 @@ export default function App() {
   const [loading, setLoading] = React.useState(true);
   const [refreshing, setRefreshing] = React.useState(false);
   const [globalToast, setGlobalToast] = React.useState<{ type: 'success' | 'error'; text: string } | null>(null);
-  const { theme, toggleTheme } = useTheme();
 
   // Pathname-based URL Routing Effect (URL -> App State)
   React.useEffect(() => {
@@ -300,8 +298,6 @@ export default function App() {
         onLogout={handleLogout}
         activeWorkflowTab={activeWorkflowTab}
         setActiveWorkflowTab={setActiveWorkflowTab}
-        theme={theme}
-        onToggleTheme={toggleTheme}
       />
 
       <main className="flex-1 flex flex-col min-w-0 overflow-hidden">

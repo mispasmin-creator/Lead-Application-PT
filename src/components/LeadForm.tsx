@@ -25,16 +25,16 @@ function FormField({ label, required, error, hint, children }: {
 }) {
   return (
     <div className="space-y-1.5">
-      <label className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-widest" style={{ color: 'var(--text-subtle)' }}>
+      <label className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-gray-600">
         {label}
-        {required && <span className="text-rose-400 text-sm leading-none">*</span>}
+        {required && <span className="text-red-400 text-sm leading-none">*</span>}
       </label>
       {children}
       {hint && !error && (
-        <p className="text-[11px]" style={{ color: 'var(--text-subtle)' }}>{hint}</p>
+        <p className="text-[11px] text-gray-400">{hint}</p>
       )}
       {error && (
-        <p className="text-xs text-rose-500 flex items-center gap-1.5">
+        <p className="text-xs text-red-500 flex items-center gap-1.5">
           <AlertCircle className="w-3.5 h-3.5 shrink-0" />
           {error}
         </p>
@@ -45,13 +45,13 @@ function FormField({ label, required, error, hint, children }: {
 
 function SectionHeader({ num, label, desc }: { num: number; label: string; desc: string }) {
   return (
-    <div className="flex items-start gap-4 pb-5 mb-6 border-b" style={{ borderColor: 'var(--border)' }}>
-      <div className="w-10 h-10 rounded-2xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-sm shadow-emerald-200 text-sm font-bold">
+    <div className="flex items-center gap-3">
+      <div className="w-9 h-9 rounded-xl bg-gray-900 text-white flex items-center justify-center shrink-0 shadow-sm text-sm font-bold leading-none">
         {num}
       </div>
       <div>
-        <h3 className="text-base font-bold" style={{ color: 'var(--text)' }}>{label}</h3>
-        <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>{desc}</p>
+        <h3 className="text-sm font-bold text-gray-900 leading-tight">{label}</h3>
+        <p className="text-xs mt-0.5 text-gray-500 leading-tight">{desc}</p>
       </div>
     </div>
   );
@@ -60,24 +60,24 @@ function SectionHeader({ num, label, desc }: { num: number; label: string; desc:
 // ─── Main Component ─────────────────────────────────────────────────────────────
 
 export default function LeadForm({ onSuccess, syncConfig }: LeadFormProps) {
-  const [submitting,        setSubmitting]        = React.useState(false);
-  const [uploading,         setUploading]         = React.useState(false);
-  const [toasts,            setToasts]            = React.useState<Toast[]>([]);
-  const [uploadProgress,    setUploadProgress]    = React.useState(0);
-  const [uploadedFileName,  setUploadedFileName]  = React.useState('');
-  const [dragActive,        setDragActive]        = React.useState(false);
-  const [errors,            setErrors]            = React.useState<Record<string, string>>({});
+  const [submitting, setSubmitting] = React.useState(false);
+  const [uploading, setUploading] = React.useState(false);
+  const [toasts, setToasts] = React.useState<Toast[]>([]);
+  const [uploadProgress, setUploadProgress] = React.useState(0);
+  const [uploadedFileName, setUploadedFileName] = React.useState('');
+  const [dragActive, setDragActive] = React.useState(false);
+  const [errors, setErrors] = React.useState<Record<string, string>>({});
 
-  const [leadNo,        setLeadNo]        = React.useState('');
-  const [clientName,    setClientName]    = React.useState('');
-  const [phone,         setPhone]         = React.useState('');
-  const [kitchen,       setKitchen]       = React.useState('');
-  const [wardrobe,      setWardrobe]      = React.useState('');
-  const [otherWork,     setOtherWork]     = React.useState('');
-  const [leadSource,    setLeadSource]    = React.useState('');
-  const [salesPerson,   setSalesPerson]   = React.useState('');
+  const [leadNo, setLeadNo] = React.useState('');
+  const [clientName, setClientName] = React.useState('');
+  const [phone, setPhone] = React.useState('');
+  const [kitchen, setKitchen] = React.useState('');
+  const [wardrobe, setWardrobe] = React.useState('');
+  const [otherWork, setOtherWork] = React.useState('');
+  const [leadSource, setLeadSource] = React.useState('');
+  const [salesPerson, setSalesPerson] = React.useState('');
   const [attachFileUrl, setAttachFileUrl] = React.useState('');
-  const [gpsLocation,   setGpsLocation]   = React.useState('');
+  const [gpsLocation, setGpsLocation] = React.useState('');
 
   React.useEffect(() => {
     if (toasts.length > 0) {
@@ -166,24 +166,11 @@ export default function LeadForm({ onSuccess, syncConfig }: LeadFormProps) {
   const disabled = submitting || uploading;
 
   const inputBase =
-    'w-full h-11 px-4 rounded-xl border text-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:border-emerald-400 focus:ring-emerald-100 disabled:opacity-60 disabled:cursor-not-allowed placeholder:opacity-40';
+    'w-full h-11 px-4 rounded-xl border border-gray-200 text-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-gray-900/10 focus:border-gray-900 disabled:opacity-60 disabled:cursor-not-allowed placeholder:text-gray-400 bg-white text-gray-900';
 
   const inputStyle = (hasError?: boolean) => ({
-    background: 'var(--bg-elevated)',
-    borderColor: hasError ? '#f43f5e' : 'var(--border)',
-    color: 'var(--text)',
+    borderColor: hasError ? '#ef4444' : '#e5e7eb',
   });
-
-  const fieldStyle = { background: 'var(--bg-elevated)', borderColor: 'var(--border)', color: 'var(--text)' };
-
-  // Progress summary for left panel
-  const sections = [
-    { label: 'Lead Info',    done: !!(clientName && phone) },
-    { label: 'Work Details', done: !!(kitchen || wardrobe || otherWork) },
-    { label: 'Attribution',  done: !!(leadSource || salesPerson) },
-    { label: 'Attachment',   done: !!attachFileUrl },
-  ];
-  const completedCount = sections.filter(s => s.done).length;
 
   return (
     <div className="animate-fade-in pb-10">
@@ -192,21 +179,19 @@ export default function LeadForm({ onSuccess, syncConfig }: LeadFormProps) {
       <div className="fixed top-6 right-6 z-50 space-y-3 w-full max-w-sm pointer-events-none">
         {toasts.map(t => (
           <div key={t.id}
-            className={`pointer-events-auto flex items-start gap-3 p-4 rounded-2xl shadow-xl border backdrop-blur-md animate-slideInRight ${
-              t.type === 'success' ? 'border-emerald-200' : 'border-rose-200'
-            }`}
-            style={{ background: 'var(--bg-card)' }}>
+            className={`pointer-events-auto flex items-start gap-3 p-4 rounded-2xl shadow-xl border backdrop-blur-sm animate-slideInRight ${
+              t.type === 'success' ? 'border-gray-200 bg-white' : 'border-red-200 bg-white'
+            }`}>
             <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${
-              t.type === 'success' ? 'bg-emerald-100' : 'bg-rose-100'
+              t.type === 'success' ? 'bg-gray-100' : 'bg-red-100'
             }`}>
               {t.type === 'success'
-                ? <CheckCircle className="w-4 h-4 text-emerald-600" />
-                : <AlertCircle className="w-4 h-4 text-rose-500" />}
+                ? <CheckCircle className="w-4 h-4 text-gray-700" />
+                : <AlertCircle className="w-4 h-4 text-red-500" />}
             </div>
-            <p className="flex-1 text-sm font-medium" style={{ color: 'var(--text)' }}>{t.text}</p>
+            <p className="flex-1 text-sm font-medium text-gray-900">{t.text}</p>
             <button onClick={() => setToasts(p => p.filter(x => x.id !== t.id))}
-              className="cursor-pointer p-0.5 rounded-lg transition-colors"
-              style={{ color: 'var(--text-subtle)' }}>
+              className="cursor-pointer p-0.5 rounded-lg transition-colors text-gray-400 hover:text-gray-600">
               <X className="w-3.5 h-3.5" />
             </button>
           </div>
@@ -216,87 +201,39 @@ export default function LeadForm({ onSuccess, syncConfig }: LeadFormProps) {
       {/* Page Header */}
       <div className="flex items-start justify-between gap-4 mb-8">
         <div>
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold tracking-widest mb-3 bg-emerald-100 text-emerald-700 border border-emerald-200">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold tracking-wider mb-3 bg-gray-100 text-gray-700 border border-gray-200">
             <Briefcase className="w-3.5 h-3.5" />
             NEW OPPORTUNITY
           </div>
-          <h1 className="text-2xl font-bold tracking-tight" style={{ color: 'var(--text)' }}>Create New Lead</h1>
-          <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>Fill in the details to add a lead to your pipeline</p>
-        </div>
-        {/* Completion pill */}
-        <div className="shrink-0 flex flex-col items-end gap-1 mt-1">
-          <div className="text-xs font-bold" style={{ color: 'var(--text-muted)' }}>{completedCount}/4 sections</div>
-          <div className="flex gap-1">
-            {sections.map((s, i) => (
-              <div key={i} className={`w-8 h-1.5 rounded-full transition-all ${s.done ? 'bg-emerald-500' : ''}`}
-                style={!s.done ? { background: 'var(--border)' } : {}} />
-            ))}
-          </div>
+          <h1 className="text-2xl font-bold tracking-tight text-gray-900">Create New Lead</h1>
+          <p className="text-sm mt-1 text-gray-500">Fill in the details to add a lead to your pipeline</p>
         </div>
       </div>
 
-      {/* Two-column layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-6 items-start">
-
-        {/* ─ Left panel: sticky progress sidebar ─ */}
-        <div className="lg:sticky lg:top-6">
-          <div className="rounded-2xl border overflow-hidden"
-            style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
-            {/* Panel header */}
-            <div className="px-5 py-4 border-b" style={{ borderColor: 'var(--border)', background: 'var(--bg-elevated)' }}>
-              <p className="text-xs font-bold uppercase tracking-widest" style={{ color: 'var(--text-subtle)' }}>Form Progress</p>
-            </div>
-            {/* Section list */}
-            <div className="p-3 space-y-1">
-              {sections.map((s, i) => (
-                <div key={i} className="flex items-center gap-3 px-3 py-2.5 rounded-xl transition-colors"
-                  style={{ background: s.done ? 'rgba(16,185,129,0.06)' : 'transparent' }}>
-                  {s.done
-                    ? <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
-                    : <Circle className="w-4 h-4 shrink-0" style={{ color: 'var(--text-subtle)' }} />
-                  }
-                  <span className="text-sm font-semibold" style={{ color: s.done ? '#059669' : 'var(--text-muted)' }}>
-                    {i + 1}. {s.label}
-                  </span>
-                  {s.done && <ChevronRight className="w-3.5 h-3.5 text-emerald-500 ml-auto" />}
-                </div>
-              ))}
-            </div>
-            {/* Summary preview */}
-            {(clientName || phone) && (
-              <div className="mx-3 mb-3 p-3 rounded-xl border" style={{ background: 'var(--bg-elevated)', borderColor: 'var(--border)' }}>
-                <p className="text-[11px] font-bold uppercase tracking-widest mb-2" style={{ color: 'var(--text-subtle)' }}>Preview</p>
-                {clientName && <p className="text-sm font-semibold truncate" style={{ color: 'var(--text)' }}>{clientName}</p>}
-                {phone && <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>{phone}</p>}
-                {leadSource && <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>via {leadSource}</p>}
-                {salesPerson && <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>→ {salesPerson}</p>}
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* ─ Right panel: the actual form ─ */}
+      {/* Form layout */}
+      <div className="max-w-3xl">
         <form onSubmit={handleSubmit}>
           <div className="space-y-5">
 
-            {/* ── Section 1: Lead Information ── */}
-            <div className="rounded-2xl border overflow-hidden"
-              style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
-              <div className="px-6 py-5 border-b" style={{ borderColor: 'var(--border)', background: 'var(--bg-elevated)' }}>
+            {/* Section 1 */}
+            <div className="rounded-2xl border border-gray-200 overflow-hidden bg-white shadow-sm">
+              <div className="px-6 py-4 border-b border-gray-200 bg-gray-50/50">
                 <SectionHeader num={1} label="Lead Information" desc="Basic contact and identification details" />
+              </div>
+              <div className="px-6 py-5">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                   <FormField label="Lead Number" hint="Auto-generated if left blank">
                     <div className="relative">
-                      <Hash className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: 'var(--text-subtle)' }} />
+                      <Hash className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                       <input type="text" value={leadNo} placeholder="e.g., LD-2409"
                         onChange={e => setLeadNo(e.target.value)}
-                        className={`${inputBase} pl-10`} style={fieldStyle} disabled={disabled} />
+                        className={`${inputBase} pl-10`} disabled={disabled} />
                     </div>
                   </FormField>
 
                   <FormField label="Client Name" required error={errors.clientName}>
                     <div className="relative">
-                      <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: 'var(--text-subtle)' }} />
+                      <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                       <input type="text" value={clientName} placeholder="Full name"
                         onChange={e => { setClientName(e.target.value); if (errors.clientName) setErrors(p => ({ ...p, clientName: '' })); }}
                         className={`${inputBase} pl-10`} style={inputStyle(!!errors.clientName)} disabled={disabled} />
@@ -305,7 +242,7 @@ export default function LeadForm({ onSuccess, syncConfig }: LeadFormProps) {
 
                   <FormField label="Phone Number" required error={errors.phone}>
                     <div className="relative">
-                      <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: 'var(--text-subtle)' }} />
+                      <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                       <input type="tel" value={phone} placeholder="+91 98765 43210"
                         onChange={e => { setPhone(e.target.value); if (errors.phone) setErrors(p => ({ ...p, phone: '' })); }}
                         className={`${inputBase} pl-10`} style={inputStyle(!!errors.phone)} disabled={disabled} />
@@ -314,26 +251,27 @@ export default function LeadForm({ onSuccess, syncConfig }: LeadFormProps) {
 
                   <FormField label="GPS Location" hint="Latitude, Longitude — optional">
                     <div className="relative">
-                      <Navigation className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: 'var(--text-subtle)' }} />
+                      <Navigation className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                       <input type="text" value={gpsLocation} placeholder="28.6139, 77.2090"
                         onChange={e => setGpsLocation(e.target.value)}
-                        className={`${inputBase} pl-10`} style={fieldStyle} disabled={disabled} />
+                        className={`${inputBase} pl-10`} disabled={disabled} />
                     </div>
                   </FormField>
                 </div>
               </div>
             </div>
 
-            {/* ── Section 2: Work Details ── */}
-            <div className="rounded-2xl border overflow-hidden"
-              style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
-              <div className="px-6 py-5 border-b" style={{ borderColor: 'var(--border)', background: 'var(--bg-elevated)' }}>
+            {/* Section 2 */}
+            <div className="rounded-2xl border border-gray-200 overflow-hidden bg-white shadow-sm">
+              <div className="px-6 py-4 border-b border-gray-200 bg-gray-50/50">
                 <SectionHeader num={2} label="Work Details" desc="Scope of work — kitchen, wardrobe, and other" />
+              </div>
+              <div className="px-6 py-5">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                   <FormField label="Kitchen Type">
                     <div className="relative">
                       <select value={kitchen} onChange={e => setKitchen(e.target.value)}
-                        className={`${inputBase} appearance-none pr-9`} style={fieldStyle} disabled={disabled}>
+                        className={`${inputBase} appearance-none pr-9`} disabled={disabled}>
                         <option value="">— Select Type —</option>
                         <option value="L-Shaped Modular Kitchen">L-Shaped Modular</option>
                         <option value="U-Shaped Modular Kitchen">U-Shaped Modular</option>
@@ -343,7 +281,7 @@ export default function LeadForm({ onSuccess, syncConfig }: LeadFormProps) {
                         <option value="No Kitchen Work Involved">None</option>
                       </select>
                       <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2">
-                        <svg className="w-4 h-4" style={{ color: 'var(--text-subtle)' }} fill="none" viewBox="0 0 24 24" stroke="currentColor"><polyline points="6 9 12 15 18 9" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                        <svg className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><polyline points="6 9 12 15 18 9" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
                       </div>
                     </div>
                   </FormField>
@@ -351,7 +289,7 @@ export default function LeadForm({ onSuccess, syncConfig }: LeadFormProps) {
                   <FormField label="Wardrobe Type">
                     <div className="relative">
                       <select value={wardrobe} onChange={e => setWardrobe(e.target.value)}
-                        className={`${inputBase} appearance-none pr-9`} style={fieldStyle} disabled={disabled}>
+                        className={`${inputBase} appearance-none pr-9`} disabled={disabled}>
                         <option value="">— Select Type —</option>
                         <option value="2-Door Sliding Wardrobe">2-Door Sliding</option>
                         <option value="3-Door Sliding Wardrobe">3-Door Sliding</option>
@@ -360,7 +298,7 @@ export default function LeadForm({ onSuccess, syncConfig }: LeadFormProps) {
                         <option value="No Wardrobe Layout">None</option>
                       </select>
                       <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2">
-                        <svg className="w-4 h-4" style={{ color: 'var(--text-subtle)' }} fill="none" viewBox="0 0 24 24" stroke="currentColor"><polyline points="6 9 12 15 18 9" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                        <svg className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><polyline points="6 9 12 15 18 9" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
                       </div>
                     </div>
                   </FormField>
@@ -369,23 +307,24 @@ export default function LeadForm({ onSuccess, syncConfig }: LeadFormProps) {
                     <FormField label="Other Scope" hint="TV unit, false ceiling, custom furniture, etc.">
                       <input type="text" value={otherWork} placeholder="Describe any additional work…"
                         onChange={e => setOtherWork(e.target.value)}
-                        className={inputBase} style={fieldStyle} disabled={disabled} />
+                        className={inputBase} disabled={disabled} />
                     </FormField>
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* ── Section 3: Attribution ── */}
-            <div className="rounded-2xl border overflow-hidden"
-              style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
-              <div className="px-6 py-5 border-b" style={{ borderColor: 'var(--border)', background: 'var(--bg-elevated)' }}>
+            {/* Section 3 */}
+            <div className="rounded-2xl border border-gray-200 overflow-hidden bg-white shadow-sm">
+              <div className="px-6 py-4 border-b border-gray-200 bg-gray-50/50">
                 <SectionHeader num={3} label="Attribution" desc="Where did this lead come from and who owns it?" />
+              </div>
+              <div className="px-6 py-5">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                   <FormField label="Lead Source">
                     <div className="relative">
                       <select value={leadSource} onChange={e => setLeadSource(e.target.value)}
-                        className={`${inputBase} appearance-none pr-9`} style={fieldStyle} disabled={disabled}>
+                        className={`${inputBase} appearance-none pr-9`} disabled={disabled}>
                         <option value="">— Select Source —</option>
                         <option value="Instagram Ad">Instagram Ad</option>
                         <option value="Facebook Campaign">Facebook Campaign</option>
@@ -395,7 +334,7 @@ export default function LeadForm({ onSuccess, syncConfig }: LeadFormProps) {
                         <option value="Reference Client">Reference Client</option>
                       </select>
                       <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2">
-                        <svg className="w-4 h-4" style={{ color: 'var(--text-subtle)' }} fill="none" viewBox="0 0 24 24" stroke="currentColor"><polyline points="6 9 12 15 18 9" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                        <svg className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><polyline points="6 9 12 15 18 9" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
                       </div>
                     </div>
                   </FormField>
@@ -403,7 +342,7 @@ export default function LeadForm({ onSuccess, syncConfig }: LeadFormProps) {
                   <FormField label="Assigned Sales Person">
                     <div className="relative">
                       <select value={salesPerson} onChange={e => setSalesPerson(e.target.value)}
-                        className={`${inputBase} appearance-none pr-9`} style={fieldStyle} disabled={disabled}>
+                        className={`${inputBase} appearance-none pr-9`} disabled={disabled}>
                         <option value="">— Assign to —</option>
                         <option value="Aman Gupta">Aman Gupta</option>
                         <option value="Kriti Sen">Kriti Sen</option>
@@ -411,7 +350,7 @@ export default function LeadForm({ onSuccess, syncConfig }: LeadFormProps) {
                         <option value="Rajdeep Das">Rajdeep Das</option>
                       </select>
                       <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2">
-                        <svg className="w-4 h-4" style={{ color: 'var(--text-subtle)' }} fill="none" viewBox="0 0 24 24" stroke="currentColor"><polyline points="6 9 12 15 18 9" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                        <svg className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><polyline points="6 9 12 15 18 9" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
                       </div>
                     </div>
                   </FormField>
@@ -419,22 +358,23 @@ export default function LeadForm({ onSuccess, syncConfig }: LeadFormProps) {
               </div>
             </div>
 
-            {/* ── Section 4: Attachment ── */}
-            <div className="rounded-2xl border overflow-hidden"
-              style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
-              <div className="px-6 py-5" style={{ background: 'var(--bg-elevated)' }}>
+            {/* Section 4 */}
+            <div className="rounded-2xl border border-gray-200 overflow-hidden bg-white shadow-sm">
+              <div className="px-6 py-4 border-b border-gray-200 bg-gray-50/50">
                 <SectionHeader num={4} label="Attachment" desc="Upload a floor plan, image, or any relevant document" />
+              </div>
+              <div className="px-6 py-5">
                 <div
                   onDragEnter={handleDrag} onDragOver={handleDrag}
                   onDragLeave={handleDrag} onDrop={handleDrop}
                   className={`relative rounded-2xl border-2 transition-all duration-300 ${
                     dragActive
-                      ? 'border-emerald-400 bg-emerald-50/60 scale-[1.01]'
+                      ? 'border-gray-900 bg-gray-50 scale-[1.01]'
                       : attachFileUrl
-                        ? 'border-emerald-300'
-                        : 'border-dashed'
+                        ? 'border-gray-300'
+                        : 'border-dashed border-gray-300'
                   } ${disabled ? 'opacity-60 pointer-events-none' : ''}`}
-                  style={!dragActive && !attachFileUrl ? { borderColor: 'var(--border)' } : {}}>
+                >
                   <input type="file" id="file-upload" className="absolute inset-0 opacity-0 cursor-pointer z-10"
                     onChange={e => e.target.files?.[0] && processFile(e.target.files[0])}
                     disabled={uploading || disabled}
@@ -442,44 +382,43 @@ export default function LeadForm({ onSuccess, syncConfig }: LeadFormProps) {
 
                   {uploading ? (
                     <div className="p-8 text-center space-y-4">
-                      <Loader2 className="w-10 h-10 animate-spin text-emerald-500 mx-auto" />
+                      <Loader2 className="w-10 h-10 animate-spin text-gray-700 mx-auto" />
                       <div>
-                        <p className="text-sm font-semibold" style={{ color: 'var(--text)' }}>Uploading to Drive…</p>
-                        <p className="text-xs font-mono mt-1" style={{ color: 'var(--text-muted)' }}>{uploadedFileName}</p>
+                        <p className="text-sm font-semibold text-gray-900">Uploading to Drive…</p>
+                        <p className="text-xs font-mono mt-1 text-gray-500">{uploadedFileName}</p>
                       </div>
-                      <div className="w-full rounded-full h-2 overflow-hidden" style={{ background: 'var(--bg-elevated)' }}>
-                        <div className="bg-emerald-500 h-full rounded-full transition-all duration-300"
+                      <div className="w-full rounded-full h-2 overflow-hidden bg-gray-200">
+                        <div className="bg-gray-900 h-full rounded-full transition-all duration-300"
                           style={{ width: `${uploadProgress}%` }} />
                       </div>
-                      <p className="text-xs font-bold text-emerald-600">{uploadProgress}%</p>
+                      <p className="text-xs font-bold text-gray-700">{uploadProgress}%</p>
                     </div>
                   ) : attachFileUrl ? (
                     <div className="p-6 flex items-center gap-4">
-                      <div className="w-11 h-11 rounded-xl bg-emerald-100 flex items-center justify-center shrink-0">
-                        <FileText className="w-5 h-5 text-emerald-600" />
+                      <div className="w-11 h-11 rounded-xl bg-gray-100 flex items-center justify-center shrink-0">
+                        <FileText className="w-5 h-5 text-gray-700" />
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-0.5">
-                          <CheckCircle className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
-                          <span className="text-xs font-bold text-emerald-600">Uploaded successfully</span>
+                          <CheckCircle className="w-3.5 h-3.5 text-gray-700 shrink-0" />
+                          <span className="text-xs font-bold text-gray-700">Uploaded successfully</span>
                         </div>
-                        <p className="text-sm font-medium truncate" style={{ color: 'var(--text)' }}>{uploadedFileName}</p>
+                        <p className="text-sm font-medium truncate text-gray-900">{uploadedFileName}</p>
                       </div>
                       <button type="button" onClick={() => { setAttachFileUrl(''); setUploadedFileName(''); }}
-                        className="h-8 px-3 flex items-center gap-1.5 text-xs font-semibold text-rose-500 bg-rose-50 rounded-lg border border-rose-200 hover:bg-rose-100 transition-colors cursor-pointer shrink-0">
+                        className="h-8 px-3 flex items-center gap-1.5 text-xs font-semibold text-red-600 bg-red-50 rounded-lg border border-red-200 hover:bg-red-100 transition-colors cursor-pointer shrink-0">
                         <Trash2 className="w-3.5 h-3.5" /> Remove
                       </button>
                     </div>
                   ) : (
                     <div className="p-10 text-center cursor-pointer group">
-                      <div className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-4 transition-colors group-hover:bg-emerald-50"
-                        style={{ background: 'var(--bg-elevated)' }}>
-                        <Upload className="w-6 h-6 text-emerald-500 transition-colors" />
+                      <div className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-4 transition-colors group-hover:bg-gray-100 bg-gray-50">
+                        <Upload className="w-6 h-6 text-gray-700 transition-colors" />
                       </div>
-                      <p className="text-sm font-medium" style={{ color: 'var(--text-muted)' }}>
-                        Drag & drop or <span className="text-emerald-600 font-bold">click to browse</span>
+                      <p className="text-sm font-medium text-gray-600">
+                        Drag & drop or <span className="text-gray-900 font-bold">click to browse</span>
                       </p>
-                      <p className="text-xs mt-1.5" style={{ color: 'var(--text-subtle)' }}>
+                      <p className="text-xs mt-1.5 text-gray-400">
                         PDF, images, DWG, ZIP — up to 10 MB
                       </p>
                     </div>
@@ -488,20 +427,18 @@ export default function LeadForm({ onSuccess, syncConfig }: LeadFormProps) {
               </div>
             </div>
 
-            {/* ── Form Actions ── */}
-            <div className="rounded-2xl border flex flex-col sm:flex-row items-center justify-between gap-4 px-6 py-4"
-              style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
-              <p className="text-xs" style={{ color: 'var(--text-subtle)' }}>
-                <span className="text-rose-400">*</span> Required fields must be completed before saving
+            {/* Form Actions */}
+            <div className="rounded-2xl border border-gray-200 flex flex-col sm:flex-row items-center justify-between gap-4 px-6 py-4 bg-white shadow-sm">
+              <p className="text-xs text-gray-500">
+                <span className="text-red-400">*</span> Required fields must be completed before saving
               </p>
               <div className="flex items-center gap-3">
                 <button type="button" onClick={resetForm} disabled={disabled}
-                  className="h-10 px-5 text-sm font-semibold rounded-xl border transition-all cursor-pointer hover:shadow-sm disabled:opacity-40"
-                  style={{ borderColor: 'var(--border)', color: 'var(--text-muted)', background: 'var(--bg-elevated)' }}>
+                  className="h-10 px-5 text-sm font-semibold rounded-xl border border-gray-200 transition-all cursor-pointer hover:bg-gray-50 hover:shadow-sm disabled:opacity-40 bg-white text-gray-700">
                   Reset
                 </button>
                 <button type="submit" disabled={disabled}
-                  className="h-10 px-7 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 cursor-pointer shadow-sm shadow-emerald-200 hover:-translate-y-0.5 hover:shadow-md">
+                  className="h-10 px-7 bg-gray-900 hover:bg-gray-800 text-white font-bold text-sm rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 cursor-pointer shadow-sm hover:-translate-y-0.5 hover:shadow-md">
                   {submitting
                     ? <><Loader2 className="w-4 h-4 animate-spin" /><span>Saving…</span></>
                     : <><CheckCircle className="w-4 h-4" /><span>Save Lead</span></>
