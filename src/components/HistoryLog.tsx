@@ -21,11 +21,11 @@ interface LogEntry {
 }
 
 const STEP_BADGE: Record<ActiveStepId, { cls: string; color: string }> = {
-  1: { cls: 'bg-purple-100 text-purple-700 border-purple-200 dark:bg-purple-900/30 dark:text-purple-400 dark:border-purple-700',    color: '#a855f7' },
-  2: { cls: 'bg-cyan-100 text-cyan-700 border-cyan-200 dark:bg-cyan-900/30 dark:text-cyan-400 dark:border-cyan-700',               color: '#06b6d4' },
-  3: { cls: 'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-700',          color: '#f59e0b' },
-  4: { cls: 'bg-rose-100 text-rose-700 border-rose-200 dark:bg-rose-900/30 dark:text-rose-400 dark:border-rose-700',                color: '#f43f5e' },
-  5: { cls: 'bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-700', color: '#10b981' },
+  1: { cls: 'bg-gray-100 text-gray-700 border-gray-200', color: '#6b7280' },
+  2: { cls: 'bg-gray-100 text-gray-700 border-gray-200', color: '#6b7280' },
+  3: { cls: 'bg-gray-100 text-gray-700 border-gray-200', color: '#6b7280' },
+  4: { cls: 'bg-gray-100 text-gray-700 border-gray-200', color: '#6b7280' },
+  5: { cls: 'bg-gray-100 text-gray-700 border-gray-200', color: '#6b7280' },
 };
 
 const STEP_NAMES: Record<ActiveStepId, string> = {
@@ -33,7 +33,7 @@ const STEP_NAMES: Record<ActiveStepId, string> = {
 };
 
 export default function HistoryLog({ leads }: HistoryLogProps) {
-  const [search,       setSearch]       = React.useState('');
+  const [search, setSearch] = React.useState('');
   const [selectedStep, setSelectedStep] = React.useState<string>('all');
 
   const logEntries: LogEntry[] = React.useMemo(() => {
@@ -57,7 +57,7 @@ export default function HistoryLog({ leads }: HistoryLogProps) {
     return matchSearch && matchStep;
   }), [logEntries, search, selectedStep]);
 
-  const completedLeads  = leads.filter(l => !!l.actual5).length;
+  const completedLeads = leads.filter(l => !!l.actual5).length;
   const pendingInFlight = leads.filter(l => [1,2,3,4,5].some(i => l[`planned${i}` as keyof Lead] && !l[`actual${i}` as keyof Lead])).length;
 
   return (
@@ -65,45 +65,41 @@ export default function HistoryLog({ leads }: HistoryLogProps) {
 
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold tracking-tight" style={{ color: 'var(--text)' }}>Activity Log</h1>
-        <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>Completed milestones sorted by completion date</p>
+        <h1 className="text-2xl font-bold tracking-tight text-gray-900">Activity Log</h1>
+        <p className="text-sm mt-1 text-gray-500">Completed milestones sorted by completion date</p>
       </div>
 
       {/* Summary cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {[
-          { icon: Activity,      label: 'Total Milestones',  value: logEntries.length, bg: 'bg-emerald-50 dark:bg-emerald-900/20', iconColor: 'text-emerald-600 dark:text-emerald-400' },
-          { icon: CheckCircle2,  label: 'Fully Completed',   value: completedLeads,    bg: 'bg-indigo-50 dark:bg-indigo-900/20',   iconColor: 'text-indigo-600 dark:text-indigo-400' },
-          { icon: Hourglass,     label: 'Pending In-Flight', value: pendingInFlight,   bg: 'bg-amber-50 dark:bg-amber-900/20',     iconColor: 'text-amber-600 dark:text-amber-400' },
+          { icon: Activity, label: 'Total Milestones', value: logEntries.length, bg: 'bg-gray-50', iconColor: 'text-gray-700' },
+          { icon: CheckCircle2, label: 'Fully Completed', value: completedLeads, bg: 'bg-gray-50', iconColor: 'text-gray-700' },
+          { icon: Hourglass, label: 'Pending In-Flight', value: pendingInFlight, bg: 'bg-gray-50', iconColor: 'text-gray-700' },
         ].map(({ icon: Icon, label, value, bg, iconColor }) => (
-          <div key={label} className="rounded-2xl border p-5 flex items-center gap-4 transition-all hover:shadow-md"
-            style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
+          <div key={label} className="rounded-2xl border border-gray-200 p-5 flex items-center gap-4 transition-all hover:shadow-md bg-white">
             <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${bg}`}>
               <Icon className={`w-5 h-5 ${iconColor}`} />
             </div>
             <div>
-              <p className="text-xs font-medium" style={{ color: 'var(--text-subtle)' }}>{label}</p>
-              <p className="text-2xl font-bold mt-0.5" style={{ color: 'var(--text)' }}>{value}</p>
+              <p className="text-xs font-medium text-gray-500">{label}</p>
+              <p className="text-2xl font-bold mt-0.5 text-gray-900">{value}</p>
             </div>
           </div>
         ))}
       </div>
 
       {/* Filters */}
-      <div className="rounded-2xl border p-4 flex flex-col sm:flex-row gap-3"
-        style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
+      <div className="rounded-2xl border border-gray-200 p-4 flex flex-col sm:flex-row gap-3 bg-white shadow-sm">
         <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: 'var(--text-subtle)' }} />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
           <input type="text" placeholder="Search by client, lead no, or remarks…"
             value={search} onChange={e => setSearch(e.target.value)}
-            className="w-full h-10 pl-10 pr-3 text-sm rounded-xl border focus:outline-none focus:ring-2 focus:ring-emerald-100 dark:focus:ring-emerald-900/30 focus:border-emerald-400 transition-all"
-            style={{ background: 'var(--bg-elevated)', borderColor: 'var(--border)', color: 'var(--text)' }} />
+            className="w-full h-10 pl-10 pr-3 text-sm rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-900/10 focus:border-gray-900 transition-all bg-white text-gray-900 placeholder:text-gray-400" />
         </div>
         <div className="relative flex items-center shrink-0">
-          <Filter className="absolute left-3 w-4 h-4 pointer-events-none" style={{ color: 'var(--text-subtle)' }} />
+          <Filter className="absolute left-3 w-4 h-4 pointer-events-none text-gray-400" />
           <select value={selectedStep} onChange={e => setSelectedStep(e.target.value)}
-            className="h-10 pl-10 pr-8 text-sm rounded-xl border focus:outline-none focus:ring-2 focus:ring-emerald-100 dark:focus:ring-emerald-900/30 appearance-none cursor-pointer"
-            style={{ background: 'var(--bg-elevated)', borderColor: 'var(--border)', color: 'var(--text)' }}>
+            className="h-10 pl-10 pr-8 text-sm rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-900/10 focus:border-gray-900 appearance-none cursor-pointer bg-white text-gray-900">
             <option value="all">All Steps</option>
             <option value="1">S1: 2D Design</option>
             <option value="2">S2: RFQ</option>
@@ -114,69 +110,84 @@ export default function HistoryLog({ leads }: HistoryLogProps) {
         </div>
       </div>
 
-      {/* Log list */}
-      <div className="rounded-2xl border overflow-hidden" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
+      {/* Log table */}
+      <div className="rounded-2xl border border-gray-200 overflow-hidden bg-white shadow-sm">
         {filtered.length === 0 ? (
           <div className="p-12 text-center">
-            <div className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-4" style={{ background: 'var(--bg-elevated)' }}>
-              <Clock className="w-7 h-7" style={{ color: 'var(--text-subtle)' }} />
+            <div className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-4 bg-gray-50">
+              <Clock className="w-7 h-7 text-gray-400" />
             </div>
-            <p className="text-sm font-medium" style={{ color: 'var(--text-muted)' }}>No records found</p>
-            <p className="text-xs mt-1" style={{ color: 'var(--text-subtle)' }}>Try adjusting your search or filter</p>
+            <p className="text-sm font-medium text-gray-500">No records found</p>
+            <p className="text-xs mt-1 text-gray-400">Try adjusting your search or filter</p>
           </div>
         ) : (
-          <div>
-            {filtered.map((entry, index) => {
-              const badge = STEP_BADGE[entry.stepId];
-              return (
-                <div key={`${entry.leadNo}-${entry.stepId}-${index}`}
-                  className="px-5 py-4 flex flex-col md:flex-row md:items-start gap-4 border-b transition-colors hover:bg-emerald-50/20 dark:hover:bg-emerald-900/10"
-                  style={{ borderColor: 'var(--border-subtle)' }}>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm" style={{ minWidth: '640px' }}>
+              <thead className="sticky top-0 z-10">
+                <tr className="border-b border-gray-200 bg-gray-50">
+                  <th className="px-5 py-3.5 text-center text-xs font-bold uppercase tracking-wider text-gray-500 w-24 whitespace-nowrap">Lead #</th>
+                  <th className="px-5 py-3.5 text-center text-xs font-bold uppercase tracking-wider text-gray-500 w-32 whitespace-nowrap">Step</th>
+                  <th className="px-5 py-3.5 text-left   text-xs font-bold uppercase tracking-wider text-gray-500 whitespace-nowrap">Client</th>
+                  <th className="px-5 py-3.5 text-left   text-xs font-bold uppercase tracking-wider text-gray-500 whitespace-nowrap">Status / Remarks</th>
+                  <th className="px-5 py-3.5 text-center text-xs font-bold uppercase tracking-wider text-gray-500 w-36 whitespace-nowrap">Completed On</th>
+                  <th className="px-5 py-3.5 text-center text-xs font-bold uppercase tracking-wider text-gray-500 w-24 whitespace-nowrap">Doc</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map((entry, index) => {
+                  const badge = STEP_BADGE[entry.stepId];
+                  return (
+                    <tr key={`${entry.leadNo}-${entry.stepId}-${index}`}
+                      className={`border-b border-gray-100 transition-colors hover:bg-gray-50/50 ${index % 2 !== 0 ? 'bg-gray-50/20' : 'bg-white'}`}>
 
-                  {/* Timeline dot */}
-                  <div className="flex items-start gap-4 flex-1 min-w-0">
-                    <div className="flex flex-col items-center mt-1 shrink-0">
-                      <div className="w-2.5 h-2.5 rounded-full" style={{ background: badge.color, boxShadow: `0 0 0 2px var(--bg-card), 0 0 0 4px ${badge.color}` }} />
-                      {index < filtered.length - 1 && <div className="w-px flex-1 min-h-[24px] mt-1.5" style={{ background: 'var(--border)' }} />}
-                    </div>
-
-                    <div className="flex-1 min-w-0">
-                      <div className="flex flex-wrap items-center gap-2 mb-1.5">
-                        <span className="font-mono text-xs px-2 py-0.5 rounded-lg font-semibold"
-                          style={{ background: 'var(--bg-elevated)', color: 'var(--text-muted)' }}>
+                      <td className="px-5 py-3.5 text-center">
+                        <span className="font-mono text-xs px-2 py-1 rounded-lg font-bold bg-gray-100 text-gray-600 whitespace-nowrap">
                           {entry.leadNo}
                         </span>
-                        <span className={`text-xs font-semibold px-2.5 py-0.5 rounded-full border ${badge.cls}`}>
+                      </td>
+
+                      <td className="px-5 py-3.5 text-center">
+                        <span className={`text-xs font-bold px-2.5 py-1 rounded-full border whitespace-nowrap ${badge.cls}`}>
                           {STEP_NAMES[entry.stepId]}
                         </span>
-                        <span className="text-xs font-medium text-emerald-700 bg-emerald-50 dark:bg-emerald-900/30 dark:text-emerald-400 px-2 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-700 flex items-center gap-1">
-                          <CheckCircle2 className="w-3 h-3" /> {entry.statusText}
-                        </span>
-                      </div>
-                      <p className="text-sm font-semibold" style={{ color: 'var(--text)' }}>{entry.clientName}</p>
-                      {entry.remarks && (
-                        <p className="text-xs mt-1 truncate max-w-lg" style={{ color: 'var(--text-muted)' }}>{entry.remarks}</p>
-                      )}
-                      {entry.docLink && (
-                        <a href={entry.docLink} target="_blank" rel="noreferrer"
-                          className="inline-flex items-center gap-1 text-xs text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 font-medium mt-1.5 transition-colors">
-                          <ExternalLink className="w-3 h-3" /> View attachment
-                        </a>
-                      )}
-                    </div>
-                  </div>
+                      </td>
 
-                  {/* Timestamp */}
-                  <div className="md:text-right shrink-0 md:ml-4 pl-6 md:pl-0">
-                    <div className="flex items-center md:justify-end gap-1 text-xs" style={{ color: 'var(--text-subtle)' }}>
-                      <Calendar className="w-3 h-3" />
-                      <span>Completed</span>
-                    </div>
-                    <p className="text-xs font-mono font-semibold mt-0.5" style={{ color: 'var(--text-muted)' }}>{entry.actualTime}</p>
-                  </div>
-                </div>
-              );
-            })}
+                      <td className="px-5 py-3.5">
+                        <p className="font-semibold text-sm text-gray-900 truncate max-w-[160px]">{entry.clientName}</p>
+                      </td>
+
+                      <td className="px-5 py-3.5">
+                        <div className="flex items-center gap-1.5 mb-0.5">
+                          <CheckCircle2 className="w-3 h-3 text-gray-500 shrink-0" />
+                          <span className="text-xs font-semibold text-gray-700 truncate max-w-[200px]">{entry.statusText}</span>
+                        </div>
+                        {entry.remarks && (
+                          <p className="text-xs text-gray-400 truncate max-w-[240px]">{entry.remarks}</p>
+                        )}
+                      </td>
+
+                      <td className="px-5 py-3.5 text-center">
+                        <div className="flex items-center justify-center gap-1 text-xs text-gray-500">
+                          <Calendar className="w-3 h-3 shrink-0" />
+                          <span className="font-mono font-semibold text-gray-700 whitespace-nowrap">{entry.actualTime}</span>
+                        </div>
+                      </td>
+
+                      <td className="px-5 py-3.5 text-center">
+                        {entry.docLink ? (
+                          <a href={entry.docLink} target="_blank" rel="noreferrer"
+                            className="inline-flex items-center gap-1 text-xs font-semibold text-gray-700 hover:text-gray-900 transition-colors">
+                            <ExternalLink className="w-3 h-3" /> View
+                          </a>
+                        ) : (
+                          <span className="text-xs text-gray-400">—</span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
         )}
       </div>

@@ -79,13 +79,11 @@ const DEFAULT_VISIBLE = new Set<keyof Lead>([
   'leadSource', 'salesPerson', 'attachFile',
 ]);
 
-// Single-hue emerald progression — each step a shade darker, so the
-// sequence itself reads as advancement instead of five unrelated colors.
-const STEP_ACCENT: Record<number, string> = { 1: '#6ee7b7', 2: '#34d399', 3: '#10b981', 4: '#059669', 5: '#047857' };
+// Grayscale step accents
+const STEP_ACCENT: Record<number, string> = { 1: '#6b7280', 2: '#4b5563', 3: '#374151', 4: '#1f2937', 5: '#111827' };
 
 const StepBadge = ({ step }: { step: number }) => (
-  <span className="inline-flex items-center gap-1.5 text-[10px] font-bold px-2 py-0.5 rounded-full border"
-    style={{ background: 'var(--bg-elevated)', borderColor: 'var(--border)', color: 'var(--text-muted)' }}>
+  <span className="inline-flex items-center gap-1.5 text-[10px] font-bold px-2 py-0.5 rounded-full border border-gray-200 bg-gray-50 text-gray-600">
     <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: STEP_ACCENT[step] }} />
     S{step}
   </span>
@@ -106,10 +104,10 @@ const getLeadStatus = (l: Lead): LeadStatus => {
 const fmtDate = (s: string) => (s ? s.split(' ')[0] : '');
 
 const STATUS_CONFIG: Record<LeadStatus, { cls: string; label: string; icon: React.ReactNode }> = {
-  completed:    { cls: 'bg-emerald-100 text-emerald-800 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-700', label: 'Completed',   icon: <CheckCircle2 className="w-3 h-3" /> },
-  'in-progress':{ cls: 'bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-700',            label: 'In Progress', icon: <Clock className="w-3 h-3" /> },
-  pending:      { cls: 'bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-700/30 dark:text-slate-400 dark:border-slate-600',            label: 'Pending',     icon: <AlertCircle className="w-3 h-3" /> },
-  delayed:      { cls: 'bg-rose-100 text-rose-800 border-rose-200 dark:bg-rose-900/30 dark:text-rose-400 dark:border-rose-700',                   label: 'Delayed',     icon: <AlertTriangle className="w-3 h-3" /> },
+  completed:    { cls: 'bg-gray-100 text-gray-700 border-gray-200', label: 'Completed',   icon: <CheckCircle2 className="w-3 h-3" /> },
+  'in-progress':{ cls: 'bg-amber-50 text-amber-700 border-amber-200', label: 'In Progress', icon: <Clock className="w-3 h-3" /> },
+  pending:      { cls: 'bg-gray-50 text-gray-500 border-gray-200', label: 'Pending',     icon: <AlertCircle className="w-3 h-3" /> },
+  delayed:      { cls: 'bg-red-50 text-red-700 border-red-200', label: 'Delayed',     icon: <AlertTriangle className="w-3 h-3" /> },
 };
 
 const StatusBadge = ({ lead }: { lead: Lead }) => {
@@ -130,41 +128,40 @@ const ProgressBar = ({ lead }: { lead: Lead }) => {
         {[1,2,3,4,5].map(i => (
           <div key={i} title={`Step ${i}: ${STEP_NAMES[i]}`}
             className={`w-5 h-1.5 rounded-full transition-all ${
-              !!lead[`actual${i}` as keyof Lead] ? 'bg-gradient-to-r from-emerald-500 to-teal-500' :
-              !!lead[`planned${i}` as keyof Lead] ? 'bg-amber-400' : 'bg-gray-200 dark:bg-gray-700'
+              !!lead[`actual${i}` as keyof Lead] ? 'bg-gray-900' :
+              !!lead[`planned${i}` as keyof Lead] ? 'bg-gray-400' : 'bg-gray-200'
             }`} />
         ))}
       </div>
-      <span className="text-xs font-mono" style={{ color: 'var(--text-subtle)' }}>{done}/5</span>
+      <span className="text-xs font-mono text-gray-400">{done}/5</span>
     </div>
   );
 };
 
 const CellValue = ({ col, lead }: { col: typeof ALL_COLUMNS[number]; lead: Lead }) => {
   const raw = lead[col.key];
-  if (!raw) return <span className="text-xs" style={{ color: 'var(--text-subtle)' }}>—</span>;
+  if (!raw) return <span className="text-xs text-gray-400">—</span>;
   const val = String(raw);
 
   if (col.key.startsWith('planned') || col.key.startsWith('actual') || col.key === 'timestamp') {
     const isActual = col.key.startsWith('actual');
-    return <span className={`text-xs font-mono ${isActual ? 'text-emerald-600 dark:text-emerald-400 font-semibold' : ''}`}
-      style={!isActual ? { color: 'var(--text-muted)' } : {}}>{fmtDate(val) || val}</span>;
+    return <span className={`text-xs font-mono ${isActual ? 'text-gray-900 font-semibold' : 'text-gray-500'}`}>{fmtDate(val) || val}</span>;
   }
   if (col.key.startsWith('delay')) {
     const isZero = val === '0 days';
-    return <span className={`text-xs font-semibold ${isZero ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>{val}</span>;
+    return <span className={`text-xs font-semibold ${isZero ? 'text-gray-600' : 'text-red-600'}`}>{val}</span>;
   }
   if ((col.key === 'designCopy' || col.key === 'quotCopy' || col.key === 'threeDDesignCopy' || col.key === 'attachFile') && val.startsWith('http')) {
     return (
-      <a href={val} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-xs text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 font-medium underline underline-offset-2">
+      <a href={val} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-xs text-gray-700 hover:text-gray-900 font-medium underline underline-offset-2">
         <ExternalLink className="w-3 h-3" /> View
       </a>
     );
   }
   if (col.key === 'quotAmount') {
-    return <span className="text-xs font-semibold" style={{ color: 'var(--text)' }}>₹{Number(val).toLocaleString()}</span>;
+    return <span className="text-xs font-semibold text-gray-900">₹{Number(val).toLocaleString()}</span>;
   }
-  return <span className="text-xs truncate block max-w-[180px]" style={{ color: 'var(--text)' }} title={val}>{val}</span>;
+  return <span className="text-xs truncate block max-w-[180px] text-gray-900" title={val}>{val}</span>;
 };
 
 const ActionModalContext = createContext<{
@@ -180,27 +177,24 @@ const InputField = ({ k, label, type = 'text', opts }: { k: keyof Lead; label: s
   if (!ctx) return null;
   const { mode, get, set } = ctx;
   const val = get(k);
-  const inputCls = 'w-full h-10 px-3 text-sm rounded-xl border focus:outline-none focus:ring-2 focus:ring-emerald-100 dark:focus:ring-emerald-900/30 focus:border-emerald-400 transition-all';
+  const inputCls = 'w-full h-10 px-3 text-sm rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-900/10 focus:border-gray-900 transition-all bg-white text-gray-900';
 
   return (
     <div>
-      <label className="block text-[10px] font-semibold uppercase tracking-widest mb-1.5" style={{ color: 'var(--text-subtle)' }}>{label}</label>
+      <label className="block text-[10px] font-semibold uppercase tracking-wider mb-1.5 text-gray-500">{label}</label>
       {mode === 'view' ? (
-        <p className="text-sm min-h-[20px] py-1" style={{ color: 'var(--text)' }}>{val || <span className="italic text-xs" style={{ color: 'var(--text-subtle)' }}>Not set</span>}</p>
+        <p className="text-sm min-h-[20px] py-1 text-gray-900">{val || <span className="italic text-xs text-gray-400">Not set</span>}</p>
       ) : type === 'textarea' ? (
         <textarea value={val} onChange={e => set(k, e.target.value)} rows={3}
-          className="w-full px-3 py-2 text-sm rounded-xl border focus:outline-none focus:ring-2 focus:ring-emerald-100 dark:focus:ring-emerald-900/30 focus:border-emerald-400 resize-none transition-all"
-          style={{ background: 'var(--bg-elevated)', borderColor: 'var(--border)', color: 'var(--text)' }} />
+          className="w-full px-3 py-2 text-sm rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-900/10 focus:border-gray-900 resize-none transition-all bg-white text-gray-900" />
       ) : type === 'select' && opts ? (
         <select value={val} onChange={e => set(k, e.target.value)}
-          className={`${inputCls} appearance-none cursor-pointer`}
-          style={{ background: 'var(--bg-elevated)', borderColor: 'var(--border)', color: 'var(--text)' }}>
+          className={`${inputCls} appearance-none cursor-pointer`}>
           {opts.map(o => <option key={o} value={o}>{o}</option>)}
         </select>
       ) : (
         <input type="text" value={val} onChange={e => set(k, e.target.value)}
-          className={inputCls}
-          style={{ background: 'var(--bg-elevated)', borderColor: 'var(--border)', color: 'var(--text)' }} />
+          className={inputCls} />
       )}
     </div>
   );
@@ -213,15 +207,14 @@ const FileRow = ({ k, label }: { k: keyof Lead; label: string }) => {
   const url = get(k);
 
   return (
-    <div className="flex items-center justify-between p-4 rounded-xl border"
-      style={{ background: 'var(--bg-elevated)', borderColor: 'var(--border)' }}>
+    <div className="flex items-center justify-between p-4 rounded-xl border border-gray-200 bg-gray-50">
       <div className="flex items-center gap-3">
-        <div className="w-9 h-9 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 flex items-center justify-center shrink-0">
-          <FileText className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+        <div className="w-9 h-9 rounded-xl bg-gray-100 flex items-center justify-center shrink-0">
+          <FileText className="w-4 h-4 text-gray-600" />
         </div>
         <div>
-          <p className="text-sm font-semibold" style={{ color: 'var(--text)' }}>{label}</p>
-          <p className="text-xs mt-0.5" style={{ color: 'var(--text-subtle)' }}>
+          <p className="text-sm font-semibold text-gray-900">{label}</p>
+          <p className="text-xs mt-0.5 text-gray-500">
             {url.startsWith('http') ? 'Stored in Drive' : 'No file attached'}
           </p>
         </div>
@@ -229,15 +222,13 @@ const FileRow = ({ k, label }: { k: keyof Lead; label: string }) => {
       <div className="flex items-center gap-2">
         {url.startsWith('http') && (
           <a href={url} target="_blank" rel="noreferrer"
-            className="h-8 px-3 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-colors border"
-            style={{ background: 'var(--bg-card)', borderColor: 'var(--border)', color: 'var(--text)' }}>
+            className="h-8 px-3 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-colors border border-gray-200 bg-white text-gray-700 hover:bg-gray-50">
             <Eye className="w-3.5 h-3.5" /> View
           </a>
         )}
         {mode === 'edit' && (
-          <label className={`relative cursor-pointer h-8 px-3 rounded-lg border text-xs font-medium flex items-center gap-1.5 transition-colors ${uploading === k ? 'opacity-60' : ''}`}
-            style={{ background: 'var(--bg-card)', borderColor: 'var(--border)', color: 'var(--text)' }}>
-            {uploading === k ? <Loader2 className="w-3.5 h-3.5 animate-spin text-emerald-500" /> : <Upload className="w-3.5 h-3.5" />}
+          <label className={`relative cursor-pointer h-8 px-3 rounded-lg border border-gray-200 text-xs font-medium flex items-center gap-1.5 transition-colors bg-white text-gray-700 hover:bg-gray-50 ${uploading === k ? 'opacity-60' : ''}`}>
+            {uploading === k ? <Loader2 className="w-3.5 h-3.5 animate-spin text-gray-600" /> : <Upload className="w-3.5 h-3.5" />}
             Upload
             <input type="file" className="absolute inset-0 opacity-0 cursor-pointer w-full" disabled={uploading !== null}
               onChange={e => { if (e.target.files?.[0]) uploadFile(k, e.target.files[0]); }} />
@@ -347,50 +338,45 @@ function ActionModal({ lead, onClose, onSave, onDelete, onMarkComplete, onRevert
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        background: "rgba(15, 23, 42, 0.65)",
-        backdropFilter: "blur(8px)",
-        WebkitBackdropFilter: "blur(8px)",
+        background: "rgba(0, 0, 0, 0.5)",
+        backdropFilter: "blur(4px)",
+        WebkitBackdropFilter: "blur(4px)",
         padding: "16px",
       }}
       onClick={onClose}
     >
-      <div className="rounded-2xl shadow-2xl w-full max-w-3xl flex flex-col overflow-hidden modal-content border"
+      <div className="rounded-2xl shadow-2xl w-full max-w-3xl flex flex-col overflow-hidden border border-gray-200 bg-white"
         style={{
-          background: 'var(--bg-card)',
-          borderColor: 'var(--border)',
           maxHeight: '90vh',
           position: 'relative',
-          boxShadow: '0 25px 50px -12px rgba(0,0,0,0.5)',
+          boxShadow: '0 25px 50px -12px rgba(0,0,0,0.3)',
         }}
         onClick={e => e.stopPropagation()}>
 
         {/* Header */}
-        <div className="flex items-start justify-between px-6 py-5 border-b shrink-0"
-          style={{ borderColor: 'var(--border)', background: 'var(--bg-elevated)' }}>
+        <div className="flex items-start justify-between px-6 py-5 border-b border-gray-200 shrink-0 bg-gray-50/50">
           <div className="flex-1 min-w-0 mr-3">
             <div className="flex flex-wrap items-center gap-2 mb-1.5">
-              <span className="font-mono text-xs px-2 py-0.5 rounded-lg font-semibold"
-                style={{ background: 'var(--bg-card)', color: 'var(--text-muted)' }}>{lead.leadNo}</span>
+              <span className="font-mono text-xs px-2 py-0.5 rounded-lg font-semibold bg-gray-100 text-gray-600">{lead.leadNo}</span>
               {activeTab === 'all' || activeTab === 'history' ? (
                 <StatusBadge lead={lead} />
               ) : (
                 <span className={`inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-0.5 rounded-full border ${
                   !!lead[`actual${activeTab}` as keyof Lead]
-                    ? 'bg-emerald-100 text-emerald-800 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-700'
-                    : 'bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-700'
+                    ? 'bg-gray-100 text-gray-700 border-gray-200'
+                    : 'bg-amber-50 text-amber-700 border-amber-200'
                 }`}>
                   {!!lead[`actual${activeTab}` as keyof Lead] ? 'Step Completed' : 'Step Pending'}
                 </span>
               )}
             </div>
-            <h2 className="font-bold text-xl leading-tight truncate" style={{ color: 'var(--text)' }}>{lead.clientName}</h2>
-            <p className="text-xs mt-0.5" style={{ color: 'var(--text-subtle)' }}>
+            <h2 className="font-bold text-xl leading-tight truncate text-gray-900">{lead.clientName}</h2>
+            <p className="text-xs mt-0.5 text-gray-500">
               {lead.phone} · {lead.salesPerson || 'Unassigned'} · {fmtDate(lead.timestamp)}
             </p>
           </div>
           <div className="flex items-center gap-2 shrink-0">
-            <button onClick={onClose} className="h-8 w-8 flex items-center justify-center rounded-lg transition-colors cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700"
-              style={{ color: 'var(--text-subtle)' }}>
+            <button onClick={onClose} className="h-8 w-8 flex items-center justify-center rounded-lg transition-colors cursor-pointer hover:bg-gray-100 text-gray-400 hover:text-gray-600">
               <X className="w-4 h-4" />
             </button>
           </div>
@@ -398,25 +384,22 @@ function ActionModal({ lead, onClose, onSave, onDelete, onMarkComplete, onRevert
 
         {/* Progress bar */}
         {(activeTab === 'all' || activeTab === 'history') && (
-          <div className="px-6 py-3 border-b shrink-0 flex items-center gap-4"
-            style={{ background: 'var(--bg-elevated)', borderColor: 'var(--border)' }}>
-            <span className="text-xs font-medium shrink-0" style={{ color: 'var(--text-muted)' }}>Overall Progress</span>
+          <div className="px-6 py-3 border-b border-gray-200 shrink-0 flex items-center gap-4 bg-gray-50/50">
+            <span className="text-xs font-medium shrink-0 text-gray-500">Overall Progress</span>
             <ProgressBar lead={lead} />
           </div>
         )}
 
         {/* Tabs */}
         {(activeTab === 'all' || activeTab === 'history') && (
-          <div className="px-6 py-2.5 border-b shrink-0 flex gap-1"
-            style={{ borderColor: 'var(--border)' }}>
+          <div className="px-6 py-2.5 border-b border-gray-200 shrink-0 flex gap-1 bg-gray-50/50">
             {(['details', 'steps', 'files'] as const).map(t => (
               <button key={t} onClick={() => setSection(t)}
                 className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer capitalize ${
                   section === t
-                    ? 'bg-emerald-600 text-white shadow-sm'
-                    : 'hover:bg-gray-100 dark:hover:bg-gray-700'
-                }`}
-                style={section !== t ? { color: 'var(--text-muted)' } : {}}>
+                    ? 'bg-gray-900 text-white shadow-sm'
+                    : 'hover:bg-gray-100 text-gray-500 hover:text-gray-700'
+                }`}>
                 {t}
               </button>
             ))}
@@ -425,10 +408,10 @@ function ActionModal({ lead, onClose, onSave, onDelete, onMarkComplete, onRevert
 
         {/* Error */}
         {err && (
-          <div className="mx-6 mt-3 px-3 py-2.5 bg-rose-50 dark:bg-rose-900/20 border border-rose-200 dark:border-rose-700 rounded-xl flex items-center gap-2 shrink-0">
-            <AlertCircle className="w-4 h-4 text-rose-500 shrink-0" />
-            <p className="text-xs text-rose-700 dark:text-rose-400 flex-1">{err}</p>
-            <button onClick={() => setErr(null)} className="text-rose-400 hover:text-rose-700 cursor-pointer"><X className="w-3.5 h-3.5" /></button>
+          <div className="mx-6 mt-3 px-3 py-2.5 bg-red-50 border border-red-200 rounded-xl flex items-center gap-2 shrink-0">
+            <AlertCircle className="w-4 h-4 text-red-500 shrink-0" />
+            <p className="text-xs text-red-700 flex-1">{err}</p>
+            <button onClick={() => setErr(null)} className="text-red-400 hover:text-red-700 cursor-pointer"><X className="w-3.5 h-3.5" /></button>
           </div>
         )}
 
@@ -437,28 +420,26 @@ function ActionModal({ lead, onClose, onSave, onDelete, onMarkComplete, onRevert
           {activeTab !== 'all' && activeTab !== 'history' ? (
             <div className="space-y-5">
               {/* Step info banner */}
-              <div className="rounded-xl border p-4" style={{ background: 'var(--bg-elevated)', borderColor: 'var(--border)' }}>
+              <div className="rounded-xl border border-gray-200 p-4 bg-gray-50">
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-xl flex items-center justify-center text-white text-xs font-bold shadow-sm"
-                      style={{ background: !!lead[`actual${activeTab}` as keyof Lead] ? 'var(--success)' : !!lead[`planned${activeTab}` as keyof Lead] ? 'var(--warning)' : STEP_ACCENT[activeTab] }}>
+                    <div className="w-8 h-8 rounded-xl flex items-center justify-center text-white text-xs font-bold shadow-sm bg-gray-700">
                       {activeTab}
                     </div>
-                    <span className="text-base font-semibold" style={{ color: 'var(--text)' }}>
+                    <span className="text-base font-semibold text-gray-900">
                       {STEP_NAMES[activeTab]}
                     </span>
                   </div>
-                  {/* Mark complete button */}
                 </div>
 
                 <div className="grid grid-cols-3 gap-4 text-xs">
                   {[
                     { label: 'Planned Date', val: fmtDate(String(lead[`planned${activeTab}` as keyof Lead] || '')) || '—', cls: '' },
-                    { label: 'Actual Date',  val: fmtDate(String(lead[`actual${activeTab}` as keyof Lead] || '')) || '—',  cls: !!lead[`actual${activeTab}` as keyof Lead] ? 'text-emerald-600 dark:text-emerald-400 font-semibold' : '' },
-                    { label: 'Delay Time',   val: String(lead[`delay${activeTab}` as keyof Lead] || '') || '—',            cls: lead[`delay${activeTab}` as keyof Lead] && lead[`delay${activeTab}` as keyof Lead] !== '0 days' ? 'text-rose-600 dark:text-rose-400 font-semibold' : 'text-emerald-600 dark:text-emerald-400' },
+                    { label: 'Actual Date',  val: fmtDate(String(lead[`actual${activeTab}` as keyof Lead] || '')) || '—',  cls: !!lead[`actual${activeTab}` as keyof Lead] ? 'text-gray-900 font-semibold' : '' },
+                    { label: 'Delay Time',   val: String(lead[`delay${activeTab}` as keyof Lead] || '') || '—',            cls: lead[`delay${activeTab}` as keyof Lead] && lead[`delay${activeTab}` as keyof Lead] !== '0 days' ? 'text-red-600 font-semibold' : 'text-gray-600' },
                   ].map(({ label, val, cls }) => (
                     <div key={label}>
-                      <p className="text-[10px] font-semibold uppercase tracking-widest mb-1" style={{ color: 'var(--text-subtle)' }}>{label}</p>
+                      <p className="text-[10px] font-semibold uppercase tracking-wider mb-1 text-gray-500">{label}</p>
                       <p className={`font-mono ${cls}`} style={!cls ? { color: 'var(--text-muted)' } : {}}>{val}</p>
                     </div>
                   ))}
@@ -473,7 +454,7 @@ function ActionModal({ lead, onClose, onSave, onDelete, onMarkComplete, onRevert
                       opts={['Draft Ready','Sent for Initial Review','Revision Needed','Approved by Client','Layout Frozen']} />
                     <InputField k="remarks1" label="Remarks" type="textarea" />
                     <div className="pt-2">
-                      <label className="block text-[10px] font-semibold uppercase tracking-widest mb-1.5" style={{ color: 'var(--text-subtle)' }}>2D Design Copy</label>
+                      <label className="block text-[10px] font-semibold uppercase tracking-wider mb-1.5 text-gray-500">2D Design Copy</label>
                       <FileRow k="designCopy" label="2D Design Copy" />
                     </div>
                   </>
@@ -492,7 +473,7 @@ function ActionModal({ lead, onClose, onSave, onDelete, onMarkComplete, onRevert
                   <>
                     <InputField k="quotAmount" label="Quotation Amount (₹)" />
                     <div className="pt-2">
-                      <label className="block text-[10px] font-semibold uppercase tracking-widest mb-1.5" style={{ color: 'var(--text-subtle)' }}>Quotation Copy</label>
+                      <label className="block text-[10px] font-semibold uppercase tracking-wider mb-1.5 text-gray-500">Quotation Copy</label>
                       <FileRow k="quotCopy" label="Quotation Copy" />
                     </div>
                   </>
@@ -513,7 +494,7 @@ function ActionModal({ lead, onClose, onSave, onDelete, onMarkComplete, onRevert
                       opts={['Approved & Sign-off Completed','3D render sent for feedback','Rendering in Queue','Alternative options requested']} />
                     <InputField k="remarks4" label="Comments" type="textarea" />
                     <div className="pt-2">
-                      <label className="block text-[10px] font-semibold uppercase tracking-widest mb-1.5" style={{ color: 'var(--text-subtle)' }}>3D Render Copy</label>
+                      <label className="block text-[10px] font-semibold uppercase tracking-wider mb-1.5 text-gray-500">3D Render Copy</label>
                       <FileRow k="threeDDesignCopy" label="3D Render Copy" />
                     </div>
                   </>
@@ -538,10 +519,9 @@ function ActionModal({ lead, onClose, onSave, onDelete, onMarkComplete, onRevert
                     opts={['2-Door Sliding Wardrobe','3-Door Sliding Wardrobe','Hinged Modular Wardrobe','Walk-in Wardrobe Closet','No Wardrobe Layout']} />
                   <InputField k="otherWork" label="Other Scope" type="textarea" />
                   {lead.gpsLocation && (
-                    <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl border"
-                      style={{ background: 'var(--bg-elevated)', borderColor: 'var(--border)' }}>
-                      <MapPin className="w-3.5 h-3.5 shrink-0" style={{ color: 'var(--text-subtle)' }} />
-                      <span className="text-xs font-mono" style={{ color: 'var(--text-muted)' }}>{lead.gpsLocation}</span>
+                    <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-gray-200 bg-gray-50">
+                      <MapPin className="w-3.5 h-3.5 shrink-0 text-gray-400" />
+                      <span className="text-xs font-mono text-gray-600">{lead.gpsLocation}</span>
                     </div>
                   )}
                 </>
@@ -557,42 +537,38 @@ function ActionModal({ lead, onClose, onSave, onDelete, onMarkComplete, onRevert
                     const pend    = !!planned && !done;
                     return (
                       <div key={i} className={`rounded-2xl border p-5 transition-all ${
-                        done ? 'border-emerald-200 dark:border-emerald-700' :
-                        pend ? 'border-amber-200 dark:border-amber-700' : ''
-                      }`}
-                        style={!done && !pend
-                          ? { background: 'var(--bg-elevated)', borderColor: 'var(--border)' }
-                          : { background: 'var(--bg-card)' }}>
+                        done ? 'border-gray-300 bg-gray-50' :
+                        pend ? 'border-amber-200 bg-amber-50/50' : 'border-gray-200 bg-white'
+                      }`}>
                         <div className="flex items-center justify-between mb-4">
                           <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-xl flex items-center justify-center text-white text-sm font-bold shadow-sm"
-                              style={{ background: done ? 'var(--success)' : pend ? 'var(--warning)' : STEP_ACCENT[i] }}>
+                            <div className="w-8 h-8 rounded-xl flex items-center justify-center text-white text-sm font-bold shadow-sm bg-gray-700">
                               {i}
                             </div>
                             <span className={`text-base font-semibold ${
-                              done ? 'text-emerald-700 dark:text-emerald-400' :
-                              pend ? 'text-amber-700 dark:text-amber-400' : ''
-                            }`} style={!done && !pend ? { color: 'var(--text-muted)' } : {}}>
+                              done ? 'text-gray-900' :
+                              pend ? 'text-amber-700' : 'text-gray-400'
+                            }`}>
                               {STEP_NAMES[i]}
                             </span>
-                            {done && <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />}
+                            {done && <CheckCircle2 className="w-4 h-4 text-gray-700" />}
                             {pend && <Clock className="w-4 h-4 text-amber-500" />}
                           </div>
                         </div>
                         <div className="grid grid-cols-3 gap-4 text-xs mb-4">
                           {[
                             { label: 'Planned', val: fmtDate(planned)||'—', cls: '' },
-                            { label: 'Actual',  val: fmtDate(actual)||'—',  cls: done ? 'text-emerald-600 dark:text-emerald-400 font-semibold' : '' },
-                            { label: 'Delay',   val: delay||'—',            cls: delay && delay !== '0 days' ? 'text-rose-600 dark:text-rose-400 font-semibold' : 'text-emerald-600 dark:text-emerald-400' },
+                            { label: 'Actual',  val: fmtDate(actual)||'—',  cls: done ? 'text-gray-900 font-semibold' : '' },
+                            { label: 'Delay',   val: delay||'—',            cls: delay && delay !== '0 days' ? 'text-red-600 font-semibold' : 'text-gray-600' },
                           ].map(({ label, val, cls }) => (
                             <div key={label}>
-                              <p className="text-[10px] font-semibold uppercase tracking-widest mb-1" style={{ color: 'var(--text-subtle)' }}>{label}</p>
+                              <p className="text-[10px] font-semibold uppercase tracking-wider mb-1 text-gray-500">{label}</p>
                               <p className={`font-mono ${cls}`} style={!cls ? { color: 'var(--text-muted)' } : {}}>{val}</p>
                             </div>
                           ))}
                         </div>
                         {(done || pend) && (
-                          <div className="pt-4 border-t space-y-4" style={{ borderColor: 'var(--border)' }}>
+                          <div className="pt-4 border-t border-gray-200 space-y-4">
                             {i === 1 && (<>
                               <InputField k="designStatus" label="Design Status" type="select"
                                 opts={['Draft Ready','Sent for Initial Review','Revision Needed','Approved by Client','Layout Frozen']} />
@@ -634,26 +610,25 @@ function ActionModal({ lead, onClose, onSave, onDelete, onMarkComplete, onRevert
           )}
 
           {/* Delete zone */}
-          <div className="pt-3 border-t" style={{ borderColor: 'var(--border)' }}>
+          <div className="pt-3 border-t border-gray-200">
             {!confirmDel ? (
               <button onClick={() => setConfirmDel(true)}
-                className="h-9 px-4 text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-900/20 hover:bg-rose-100 dark:hover:bg-rose-900/30 rounded-xl text-xs font-semibold flex items-center gap-1.5 border border-rose-200 dark:border-rose-700 transition-colors cursor-pointer">
+                className="h-9 px-4 text-red-600 bg-red-50 hover:bg-red-100 rounded-xl text-xs font-semibold flex items-center gap-1.5 border border-red-200 transition-colors cursor-pointer">
                 <Trash2 className="w-3.5 h-3.5" /> Delete Record
               </button>
             ) : (
-              <div className="flex items-center gap-3 p-3.5 bg-rose-50 dark:bg-rose-900/20 rounded-xl border border-rose-200 dark:border-rose-700">
-                <AlertTriangle className="w-4 h-4 text-rose-500 shrink-0" />
-                <span className="text-xs text-rose-700 dark:text-rose-400 font-medium flex-1">
+              <div className="flex items-center gap-3 p-3.5 bg-red-50 rounded-xl border border-red-200">
+                <AlertTriangle className="w-4 h-4 text-red-500 shrink-0" />
+                <span className="text-xs text-red-700 font-medium flex-1">
                   Permanently delete this lead? This action cannot be undone.
                 </span>
                 <button onClick={handleDelete} disabled={deleting}
-                  className="h-8 px-4 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-semibold disabled:opacity-50 flex items-center gap-1 transition-colors cursor-pointer">
+                  className="h-8 px-4 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs font-semibold disabled:opacity-50 flex items-center gap-1 transition-colors cursor-pointer">
                   {deleting && <Loader2 className="w-3 h-3 animate-spin" />}
                   {deleting ? 'Deleting…' : 'Confirm'}
                 </button>
                 <button onClick={() => setConfirmDel(false)}
-                  className="h-8 px-4 rounded-lg text-xs font-semibold transition-colors cursor-pointer border"
-                  style={{ background: 'var(--bg-card)', borderColor: 'var(--border)', color: 'var(--text)' }}>
+                  className="h-8 px-4 rounded-lg text-xs font-semibold transition-colors cursor-pointer border border-gray-200 bg-white text-gray-700 hover:bg-gray-50">
                   Cancel
                 </button>
               </div>
@@ -662,12 +637,11 @@ function ActionModal({ lead, onClose, onSave, onDelete, onMarkComplete, onRevert
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-between px-6 py-4 border-t shrink-0"
-          style={{ borderColor: 'var(--border)', background: 'var(--bg-elevated)' }}>
+        <div className="flex items-center justify-between px-6 py-4 border-t border-gray-200 shrink-0 bg-gray-50/50">
           <div>
             {revertTargetStep !== null && (
               <button onClick={handleRevert} disabled={saving || deleting || reverting}
-                className="h-10 px-4 text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-900/20 hover:bg-rose-100 dark:hover:bg-rose-900/30 rounded-xl text-xs font-semibold flex items-center gap-1.5 border border-rose-200 dark:border-rose-700 transition-colors cursor-pointer disabled:opacity-50">
+                className="h-10 px-4 text-red-600 bg-red-50 hover:bg-red-100 rounded-xl text-xs font-semibold flex items-center gap-1.5 border border-red-200 transition-colors cursor-pointer disabled:opacity-50">
                 {reverting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Undo className="w-3.5 h-3.5" />}
                 Revert to {STEP_NAMES[revertTargetStep]}
               </button>
@@ -675,12 +649,11 @@ function ActionModal({ lead, onClose, onSave, onDelete, onMarkComplete, onRevert
           </div>
           <div className="flex items-center gap-3">
             <button onClick={onClose} disabled={saving || reverting}
-              className="h-10 px-5 rounded-xl text-sm font-semibold transition-all cursor-pointer border hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-50"
-              style={{ background: 'var(--bg-card)', borderColor: 'var(--border)', color: 'var(--text)' }}>
+              className="h-10 px-5 rounded-xl text-sm font-semibold transition-all cursor-pointer border border-gray-200 bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-50">
               Cancel
             </button>
             <button onClick={handleSave} disabled={saving || uploading !== null || reverting}
-              className="h-10 px-5 bg-linear-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded-xl text-sm font-semibold flex items-center gap-1.5 transition-all disabled:opacity-50 cursor-pointer shadow-sm">
+              className="h-10 px-5 bg-gray-900 hover:bg-gray-800 text-white rounded-xl text-sm font-semibold flex items-center gap-1.5 transition-all disabled:opacity-50 cursor-pointer shadow-sm hover:shadow-md">
               {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckSquare className="w-4 h-4" />}
               {saving ? 'Submitting…' : 'Submit'}
             </button>
@@ -886,7 +859,7 @@ export default function WorkflowBoard({ leads, onRefresh, syncConfig, activeTab:
         head: [['Lead No', 'Date', 'Client', 'Source', 'Sales Person', 'Status', 'Progress']],
         body: filtered.map(l => [l.leadNo, fmtDate(l.timestamp), l.clientName, l.leadSource||'—', l.salesPerson||'—', getLeadStatus(l), `${getCompletedSteps(l)}/5`]),
         styles: { fontSize: 8, cellPadding: 2 },
-        headStyles: { fillColor: [16, 185, 129], textColor: 255, fontSize: 8 },
+        headStyles: { fillColor: [31, 41, 55], textColor: 255, fontSize: 8 },
         theme: 'striped',
         margin: { left: 14, right: 14 },
       });
@@ -900,24 +873,20 @@ export default function WorkflowBoard({ leads, onRefresh, syncConfig, activeTab:
     return leads.filter(l => l[`planned${id}` as keyof Lead] && !l[`actual${id}` as keyof Lead]).length;
   };
 
-  const selectStyle = {
-    background: 'var(--bg-card)', borderColor: 'var(--border)', color: 'var(--text)'
-  };
-
   return (
     <div className="space-y-5 animate-fade-in pb-10">
 
       {/* Toast */}
       {toast && (
         <div className={`fixed top-6 right-6 z-[70] flex items-center gap-3 px-4 py-3 rounded-2xl border shadow-xl backdrop-blur-sm animate-slideInRight ${
-          toast.type === 'success' ? 'border-emerald-200 dark:border-emerald-700' : 'border-rose-200 dark:border-rose-700'
-        }`} style={{ background: 'var(--bg-card)' }}>
+          toast.type === 'success' ? 'border-gray-200 bg-white' : 'border-red-200 bg-white'
+        }`}>
           {toast.type === 'success'
-            ? <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
-            : <AlertCircle className="w-4 h-4 text-rose-500 shrink-0" />
+            ? <CheckCircle2 className="w-4 h-4 text-gray-700 shrink-0" />
+            : <AlertCircle className="w-4 h-4 text-red-500 shrink-0" />
           }
-          <p className="text-sm font-medium" style={{ color: 'var(--text)' }}>{toast.text}</p>
-          <button onClick={() => setToast(null)} className="cursor-pointer transition-colors" style={{ color: 'var(--text-subtle)' }}>
+          <p className="text-sm font-medium text-gray-900">{toast.text}</p>
+          <button onClick={() => setToast(null)} className="cursor-pointer transition-colors text-gray-400 hover:text-gray-600">
             <X className="w-4 h-4" />
           </button>
         </div>
@@ -927,17 +896,16 @@ export default function WorkflowBoard({ leads, onRefresh, syncConfig, activeTab:
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-3 mb-1">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shadow-sm">
-              <LayoutGrid className="w-4.5 h-4.5 text-white" />
+            <div className="w-9 h-9 rounded-xl bg-gray-900 flex items-center justify-center shadow-sm">
+              <LayoutGrid className="w-5 h-5 text-white" />
             </div>
-            <h1 className="text-2xl font-bold tracking-tight" style={{ color: 'var(--text)' }}>WorkFlow</h1>
+            <h1 className="text-2xl font-bold tracking-tight text-gray-900">WorkFlow</h1>
           </div>
-          <p className="text-sm ml-12" style={{ color: 'var(--text-muted)' }}>Track and manage all leads across workflow steps</p>
+          <p className="text-sm ml-12 text-gray-500">Track and manage all leads across workflow steps</p>
         </div>
         <button onClick={handleRefresh} disabled={refreshing}
-          className="h-10 px-5 rounded-xl text-sm font-semibold flex items-center gap-2 transition-all disabled:opacity-50 cursor-pointer border hover:shadow-sm"
-          style={{ background: 'var(--bg-card)', borderColor: 'var(--border)', color: 'var(--text)' }}>
-          <RefreshCw className={`w-3.5 h-3.5 text-emerald-500 ${refreshing ? 'animate-spin' : ''}`} />
+          className="h-10 px-5 rounded-xl text-sm font-semibold flex items-center gap-2 transition-all disabled:opacity-50 cursor-pointer border border-gray-200 bg-white text-gray-700 hover:bg-gray-50 hover:shadow-sm">
+          <RefreshCw className={`w-3.5 h-3.5 text-gray-600 ${refreshing ? 'animate-spin' : ''}`} />
           {refreshing ? 'Refreshing…' : 'Refresh'}
         </button>
       </div>
@@ -945,39 +913,32 @@ export default function WorkflowBoard({ leads, onRefresh, syncConfig, activeTab:
       {/* Stats */}
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
         {[
-          { icon: <LayoutGrid className="w-4 h-4 text-slate-500 dark:text-slate-400" />,        iconBg: 'bg-slate-100 dark:bg-slate-700/40',    label: 'Total Leads', value: stats.total,     color: 'var(--text)',    bar: 'var(--text-subtle)' },
-          { icon: <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />,  iconBg: 'bg-emerald-100 dark:bg-emerald-900/30', label: 'Completed',   value: stats.completed, color: 'var(--success)', bar: 'var(--success)' },
-          { icon: <Clock className="w-4 h-4 text-amber-600 dark:text-amber-400" />,              iconBg: 'bg-amber-100 dark:bg-amber-900/30',     label: 'Pending',     value: stats.pending,   color: 'var(--warning)', bar: 'var(--warning)' },
-          { icon: <AlertTriangle className="w-4 h-4 text-rose-600 dark:text-rose-400" />,        iconBg: 'bg-rose-100 dark:bg-rose-900/30',       label: 'Delayed',     value: stats.delayed,   color: 'var(--danger)',  bar: 'var(--danger)' },
-          { icon: <Calendar className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />,         iconBg: 'bg-indigo-100 dark:bg-indigo-900/30',   label: 'Added Today', value: stats.today,     color: 'var(--info)',    bar: 'var(--info)' },
+          { icon: <LayoutGrid className="w-4 h-4 text-gray-500" />,        iconBg: 'bg-gray-100',    label: 'Total Leads', value: stats.total,     color: 'text-gray-900' },
+          { icon: <CheckCircle2 className="w-4 h-4 text-gray-700" />,  iconBg: 'bg-gray-100', label: 'Completed',   value: stats.completed, color: 'text-gray-700' },
+          { icon: <Clock className="w-4 h-4 text-amber-600" />,              iconBg: 'bg-amber-50',     label: 'Pending',     value: stats.pending,   color: 'text-amber-700' },
+          { icon: <AlertTriangle className="w-4 h-4 text-red-600" />,        iconBg: 'bg-red-50',       label: 'Delayed',     value: stats.delayed,   color: 'text-red-700' },
+          { icon: <Calendar className="w-4 h-4 text-gray-600" />,         iconBg: 'bg-gray-100',   label: 'Added Today', value: stats.today,     color: 'text-gray-700' },
         ].map(s => (
           <div key={s.label}
-            className="rounded-2xl border p-4 flex items-center gap-3 hover:shadow-md transition-all group relative overflow-hidden"
-            style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
-            {/* Left accent bar */}
-            <div className="absolute left-0 top-0 bottom-0 w-1 rounded-l-2xl" style={{ background: s.bar }} />
+            className="rounded-2xl border border-gray-200 p-4 flex items-center gap-3 hover:shadow-md transition-all group relative overflow-hidden bg-white">
             <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${s.iconBg}`}>
               {s.icon}
             </div>
             <div>
-              <p className="text-[11px] font-semibold uppercase tracking-widest" style={{ color: 'var(--text-subtle)' }}>{s.label}</p>
-              <p className="text-2xl font-bold leading-tight mt-0.5" style={{ color: s.color }}>{s.value}</p>
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-500">{s.label}</p>
+              <p className={`text-2xl font-bold leading-tight mt-0.5 ${s.color}`}>{s.value}</p>
             </div>
           </div>
         ))}
       </div>
 
-      {/* Step tabs — centered, uniform emerald theme */}
-      <div className="rounded-2xl border overflow-hidden" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
-        {/* Section label */}
-        <div className="px-5 py-2.5 border-b flex items-center justify-center gap-2"
-          style={{ borderColor: 'var(--border)', background: 'var(--bg-elevated)' }}>
-          <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-          <span className="text-[11px] font-bold uppercase tracking-widest" style={{ color: 'var(--text-subtle)' }}>Workflow Steps</span>
-          <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+      {/* Step tabs */}
+      <div className="rounded-2xl border border-gray-200 overflow-hidden bg-white shadow-sm">
+        <div className="px-5 py-2.5 border-b border-gray-200 flex items-center justify-between bg-gray-50">
+          <span className="text-[11px] font-bold uppercase tracking-wider text-gray-500">Workflow Steps</span>
+          <span className="text-[11px] text-gray-400">{leads.length} total leads</span>
         </div>
-        {/* Tab row */}
-        <div className="flex overflow-x-auto justify-center">
+        <div className="flex overflow-x-auto">
           {[
             { id: 'all' as const, name: 'All Leads', shortName: 'All', step: null },
             ...([1,2,3,4,5] as ActiveStepId[]).map(k => ({
@@ -989,21 +950,14 @@ export default function WorkflowBoard({ leads, onRefresh, syncConfig, activeTab:
             const count = tabCount(id as ActiveStepId | 'all' | 'history');
             return (
               <button key={id} onClick={() => setActiveTab(id as ActiveStepId | 'all' | 'history')}
-                className="relative flex flex-col items-center gap-1 px-6 py-3 text-xs font-semibold whitespace-nowrap transition-all cursor-pointer shrink-0"
-                style={isActive
-                  ? { color: 'var(--primary-dark)' }
-                  : { color: 'var(--text-muted)' }
-                }
-                onMouseEnter={e => { if (!isActive) (e.currentTarget as HTMLElement).style.color = 'var(--primary-dark)'; }}
-                onMouseLeave={e => { if (!isActive) (e.currentTarget as HTMLElement).style.color = 'var(--text-muted)'; }}
-              >
-                {/* Step circle or grid icon */}
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${
+                className={`relative flex flex-col items-center gap-1.5 px-5 py-3.5 text-xs font-semibold whitespace-nowrap transition-all cursor-pointer shrink-0 border-r border-gray-100 last:border-r-0 ${
+                  isActive ? 'bg-gray-50 text-gray-900' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50/50'
+                }`}>
+                <div className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all ${
                   isActive
-                    ? 'bg-emerald-600 text-white shadow-md shadow-emerald-200'
-                    : 'text-gray-400'
-                }`}
-                  style={!isActive ? { background: 'var(--bg-elevated)' } : {}}>
+                    ? 'bg-gray-900 text-white shadow-sm'
+                    : 'bg-gray-100 text-gray-400'
+                }`}>
                   {step === null
                     ? <LayoutGrid className="w-3.5 h-3.5" />
                     : step === 'H'
@@ -1011,18 +965,14 @@ export default function WorkflowBoard({ leads, onRefresh, syncConfig, activeTab:
                       : <span className="text-xs font-bold">{step}</span>
                   }
                 </div>
-                {/* Label */}
-                <span className="hidden sm:inline text-[11px] font-semibold">{name}</span>
+                <span className="hidden sm:inline text-[11px] font-semibold leading-tight text-center">{name}</span>
                 <span className="sm:hidden text-[11px] font-semibold">{shortName}</span>
-                {/* Count badge */}
-                <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
-                  isActive ? 'bg-emerald-100 text-emerald-700' : ''
-                }`}
-                  style={!isActive ? { background: 'var(--bg-elevated)', color: 'var(--text-subtle)' } : {}}>
+                <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${
+                  isActive ? 'bg-gray-200 text-gray-700 border-gray-300' : 'bg-gray-50 text-gray-400 border-gray-200'
+                }`}>
                   {count}
                 </span>
-                {/* Active underline */}
-                {isActive && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-emerald-500 rounded-full" />}
+                {isActive && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gray-900" />}
               </button>
             );
           })}
@@ -1030,18 +980,17 @@ export default function WorkflowBoard({ leads, onRefresh, syncConfig, activeTab:
       </div>
 
       {/* Toolbar */}
-      <div className="rounded-2xl border" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
-        <div className="flex flex-col sm:flex-row gap-2 items-start sm:items-center px-4 py-3 border-b" style={{ borderColor: 'var(--border)' }}>
+      <div className="rounded-2xl border border-gray-200 bg-white shadow-sm">
+        <div className="flex flex-col sm:flex-row gap-2 items-start sm:items-center px-4 py-3.5 border-b border-gray-200">
 
           {/* Search */}
           <div className="relative flex-1 min-w-[200px]">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: 'var(--text-subtle)' }} />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
             <input value={search} onChange={e => setSearch(e.target.value)}
               placeholder="Search by client, lead no, phone…"
-              className="w-full h-9 pl-9 pr-8 text-sm rounded-xl border focus:outline-none focus:ring-2 focus:ring-emerald-100 focus:border-emerald-400 transition-all"
-              style={{ background: 'var(--bg-elevated)', borderColor: 'var(--border)', color: 'var(--text)' }} />
+              className="w-full h-9 pl-9 pr-8 text-sm rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-900/10 focus:border-gray-900 transition-all bg-white text-gray-900 placeholder:text-gray-400" />
             {search && (
-              <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 cursor-pointer" style={{ color: 'var(--text-subtle)' }}>
+              <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 cursor-pointer text-gray-400 hover:text-gray-600">
                 <X className="w-4 h-4" />
               </button>
             )}
@@ -1054,35 +1003,32 @@ export default function WorkflowBoard({ leads, onRefresh, syncConfig, activeTab:
             <button onClick={() => setShowFilters(v => !v)}
               className={`h-9 px-3 rounded-xl text-xs font-semibold flex items-center gap-1.5 border transition-all cursor-pointer ${
                 showFilters || (empFilter || statusFilter || deptFilter)
-                  ? 'bg-emerald-50 text-emerald-700 border-emerald-300'
-                  : ''
-              }`}
-              style={!showFilters && !(empFilter || statusFilter || deptFilter) ? { background: 'var(--bg-elevated)', borderColor: 'var(--border)', color: 'var(--text-muted)' } : {}}>
+                  ? 'bg-gray-100 text-gray-700 border-gray-300'
+                  : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50'
+              }`}>
               <Filter className="w-3.5 h-3.5" /> Filters
-              {(empFilter || statusFilter || deptFilter) && <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />}
+              {(empFilter || statusFilter || deptFilter) && <span className="w-1.5 h-1.5 rounded-full bg-gray-700" />}
             </button>
 
             {/* Column picker */}
             <div className="relative">
               <button onClick={() => setShowColMenu(v => !v)}
-                className="h-9 px-3 rounded-xl text-xs font-semibold flex items-center gap-1.5 border transition-all cursor-pointer"
-                style={{ background: 'var(--bg-elevated)', borderColor: 'var(--border)', color: 'var(--text-muted)' }}>
+                className="h-9 px-3 rounded-xl text-xs font-semibold flex items-center gap-1.5 border border-gray-200 transition-all cursor-pointer bg-white text-gray-500 hover:bg-gray-50">
                 <Columns className="w-3.5 h-3.5" /> Columns
-                <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold" style={{ background: 'var(--bg-card)', color: 'var(--text-muted)' }}>{activeCols.length}</span>
+                <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-gray-100 text-gray-600">{activeCols.length}</span>
               </button>
               {showColMenu && (
-                <div className="absolute right-0 top-full mt-2 z-30 rounded-2xl shadow-xl p-4 w-80 max-h-96 overflow-y-auto animate-fade-in border"
-                  style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
+                <div className="absolute right-0 top-full mt-2 z-30 rounded-2xl shadow-xl p-4 w-80 max-h-96 overflow-y-auto animate-fade-in border border-gray-200 bg-white">
                   <div className="flex items-center justify-between mb-3">
-                    <span className="text-xs font-semibold uppercase tracking-widest" style={{ color: 'var(--text-muted)' }}>Toggle Columns</span>
-                    <button onClick={() => setShowColMenu(false)} className="cursor-pointer" style={{ color: 'var(--text-subtle)' }}><X className="w-4 h-4" /></button>
+                    <span className="text-xs font-semibold uppercase tracking-wider text-gray-500">Toggle Columns</span>
+                    <button onClick={() => setShowColMenu(false)} className="cursor-pointer text-gray-400 hover:text-gray-600"><X className="w-4 h-4" /></button>
                   </div>
                   <div className="grid grid-cols-2 gap-1">
                     {ALL_COLUMNS.map(c => (
-                      <label key={c.key} className="flex items-center gap-2 cursor-pointer p-1.5 rounded-lg transition-colors hover:bg-gray-50 dark:hover:bg-gray-700">
-                        <input type="checkbox" checked={visibleCols.has(c.key)} className="w-3.5 h-3.5 accent-emerald-600 rounded"
+                      <label key={c.key} className="flex items-center gap-2 cursor-pointer p-1.5 rounded-lg transition-colors hover:bg-gray-50">
+                        <input type="checkbox" checked={visibleCols.has(c.key)} className="w-3.5 h-3.5 accent-gray-700 rounded"
                           onChange={() => setVisibleCols(prev => { const n = new Set(prev); n.has(c.key) ? n.delete(c.key) : n.add(c.key); return n; })} />
-                        <span className="text-xs truncate" style={{ color: 'var(--text)' }}>{c.label}</span>
+                        <span className="text-xs truncate text-gray-900">{c.label}</span>
                         {c.step && <span className="ml-auto"><StepBadge step={c.step} /></span>}
                       </label>
                     ))}
@@ -1092,45 +1038,41 @@ export default function WorkflowBoard({ leads, onRefresh, syncConfig, activeTab:
             </div>
 
             {/* Divider */}
-            <div className="w-px h-6" style={{ background: 'var(--border)' }} />
+            <div className="w-px h-6 bg-gray-200" />
 
-            {/* Single Export dropdown */}
+            {/* Export dropdown */}
             <div className="relative">
               <button
                 onClick={() => setShowExport(v => !v)}
                 title="Export data"
-                className="h-9 px-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all shadow-sm cursor-pointer">
+                className="h-9 px-3 bg-gray-900 hover:bg-gray-800 text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all shadow-sm cursor-pointer">
                 <Download className="w-3.5 h-3.5" />
                 <span className="hidden sm:inline">Export</span>
                 <ChevronDown className="w-3 h-3 opacity-70" />
               </button>
               {showExport && (
                 <div
-                  className="absolute right-0 top-full mt-2 z-30 rounded-xl shadow-xl border animate-fade-in overflow-hidden"
-                  style={{ background: 'var(--bg-card)', borderColor: 'var(--border)', minWidth: '140px' }}
+                  className="absolute right-0 top-full mt-2 z-30 rounded-xl shadow-xl border border-gray-200 animate-fade-in overflow-hidden bg-white"
+                  style={{ minWidth: '140px' }}
                 >
                   <button onClick={() => { handleExcel(); setShowExport(false); }}
-                    className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-semibold text-left transition-colors hover:bg-emerald-50"
-                    style={{ color: 'var(--text)' }}>
-                    <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600" /> Excel (.xlsx)
+                    className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-semibold text-left transition-colors hover:bg-gray-50 text-gray-700">
+                    <FileSpreadsheet className="w-3.5 h-3.5 text-gray-600" /> Excel (.xlsx)
                   </button>
-                  <div style={{ height: '1px', background: 'var(--border)' }} />
+                  <div className="h-px bg-gray-200" />
                   <button onClick={() => { handleCSV(); setShowExport(false); }}
-                    className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-semibold text-left transition-colors hover:bg-emerald-50"
-                    style={{ color: 'var(--text)' }}>
-                    <FileText className="w-3.5 h-3.5 text-emerald-600" /> CSV (.csv)
+                    className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-semibold text-left transition-colors hover:bg-gray-50 text-gray-700">
+                    <FileText className="w-3.5 h-3.5 text-gray-600" /> CSV (.csv)
                   </button>
-                  <div style={{ height: '1px', background: 'var(--border)' }} />
+                  <div className="h-px bg-gray-200" />
                   <button onClick={() => { handlePDF(); setShowExport(false); }} disabled={exporting}
-                    className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-semibold text-left transition-colors hover:bg-emerald-50 disabled:opacity-50"
-                    style={{ color: 'var(--text)' }}>
-                    <Printer className="w-3.5 h-3.5 text-emerald-600" /> PDF Report
+                    className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-semibold text-left transition-colors hover:bg-gray-50 disabled:opacity-50 text-gray-700">
+                    <Printer className="w-3.5 h-3.5 text-gray-600" /> PDF Report
                   </button>
-                  <div style={{ height: '1px', background: 'var(--border)' }} />
+                  <div className="h-px bg-gray-200" />
                   <button onClick={() => { window.print(); setShowExport(false); }}
-                    className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-semibold text-left transition-colors hover:bg-emerald-50"
-                    style={{ color: 'var(--text)' }}>
-                    <Printer className="w-3.5 h-3.5 text-emerald-600" /> Print
+                    className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-semibold text-left transition-colors hover:bg-gray-50 text-gray-700">
+                    <Printer className="w-3.5 h-3.5 text-gray-600" /> Print
                   </button>
                 </div>
               )}
@@ -1140,7 +1082,7 @@ export default function WorkflowBoard({ leads, onRefresh, syncConfig, activeTab:
 
         {/* Filters */}
         {showFilters && (
-          <div className="flex flex-wrap gap-2 px-4 py-3 border-t" style={{ borderColor: 'var(--border)', background: 'var(--bg-elevated)' }}>
+          <div className="flex flex-wrap gap-2 px-4 py-3 border-t border-gray-200 bg-gray-50/50">
             {[
               { value: empFilter,    onChange: setEmpFilter,    label: 'All Sales Persons', options: allEmployees.map(e => ({ value: e, label: e })) },
               { value: statusFilter, onChange: setStatusFilter, label: 'All Statuses', options: [
@@ -1150,15 +1092,14 @@ export default function WorkflowBoard({ leads, onRefresh, syncConfig, activeTab:
               { value: deptFilter, onChange: setDeptFilter, label: 'All Work Types', options: allDepts.map(d => ({ value: d, label: d })) },
             ].map(({ value, onChange, label, options }) => (
               <select key={label} value={value} onChange={e => onChange(e.target.value)}
-                className="h-9 px-3 text-xs rounded-xl border focus:outline-none focus:ring-1 focus:ring-emerald-300 cursor-pointer"
-                style={selectStyle}>
+                className="h-9 px-3 text-xs rounded-xl border border-gray-200 focus:outline-none focus:ring-1 focus:ring-gray-300 cursor-pointer bg-white text-gray-700">
                 <option value="">{label}</option>
                 {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
               </select>
             ))}
             {(empFilter || statusFilter || deptFilter) && (
               <button onClick={() => { setEmpFilter(''); setStatusFilter(''); setDeptFilter(''); }}
-                className="h-9 px-3 text-xs font-semibold text-rose-600 bg-rose-50 rounded-xl border border-rose-200 flex items-center gap-1.5 transition-colors cursor-pointer hover:bg-rose-100">
+                className="h-9 px-3 text-xs font-semibold text-red-600 bg-red-50 rounded-xl border border-red-200 flex items-center gap-1.5 transition-colors cursor-pointer hover:bg-red-100">
                 <X className="w-3.5 h-3.5" /> Clear all
               </button>
             )}
@@ -1167,16 +1108,16 @@ export default function WorkflowBoard({ leads, onRefresh, syncConfig, activeTab:
       </div>
 
       {/* Table */}
-      <div className="rounded-2xl border overflow-hidden shadow-sm" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
+      <div className="rounded-2xl border border-gray-200 overflow-hidden shadow-sm bg-white">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs border-collapse" style={{ minWidth: `${Math.max(1000, activeCols.length * 130 + 280)}px` }}>
             {activeCols.some(c => c.step) && (
               <thead>
-                <tr className="border-b" style={{ borderColor: 'var(--border)', background: 'var(--bg-elevated)' }}>
+                <tr className="border-b border-gray-200 bg-gray-50">
                   <th colSpan={2} />
                   {activeCols.map(c => (
                     !c.step ? <th key={c.key} /> :
-                    <th key={c.key} className="px-4 py-2 border-x text-center" style={{ borderColor: 'var(--border)' }}>
+                    <th key={c.key} className="px-4 py-2 border-x border-gray-200 text-center">
                       <StepBadge step={c.step} />
                     </th>
                   ))}
@@ -1184,24 +1125,22 @@ export default function WorkflowBoard({ leads, onRefresh, syncConfig, activeTab:
                 </tr>
               </thead>
             )}
-            <thead className="sticky top-0 z-10" style={{ background: 'var(--bg-elevated)' }}>
-              <tr className="border-b" style={{ borderColor: 'var(--border)' }}>
-                <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider w-[100px]" style={{ color: 'var(--text-subtle)' }}>Status</th>
-                <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider w-[110px]" style={{ color: 'var(--text-subtle)' }}>Progress</th>
+            <thead className="sticky top-0 z-10 bg-gray-50">
+              <tr className="border-b border-gray-200">
+                <th className="px-4 py-3.5 text-xs font-bold uppercase tracking-wider text-center w-[112px] text-gray-500 whitespace-nowrap">Status</th>
+                <th className="px-4 py-3.5 text-xs font-bold uppercase tracking-wider text-center w-[120px] text-gray-500 whitespace-nowrap">Progress</th>
                 {activeCols.map(c => (
                   <th key={c.key} onClick={() => toggleSort(c.key)}
-                    className={`px-4 py-3 text-xs font-semibold uppercase tracking-wider cursor-pointer transition-colors select-none hover:bg-gray-100 dark:hover:bg-gray-700 ${c.width}`}
-                    style={{ color: 'var(--text-subtle)' }}>
+                    className={`px-4 py-3.5 text-xs font-bold uppercase tracking-wider cursor-pointer transition-colors select-none hover:bg-gray-100 ${c.width} text-gray-500 whitespace-nowrap`}>
                     <div className="flex items-center gap-1">
                       {c.label}
                       {sort.key === c.key
-                        ? sort.dir === 'asc' ? <ChevronUp className="w-3 h-3 text-emerald-500" /> : <ChevronDown className="w-3 h-3 text-emerald-500" />
-                        : <ChevronsUpDown className="w-3 h-3" style={{ color: 'var(--text-subtle)' }} />}
+                        ? sort.dir === 'asc' ? <ChevronUp className="w-3 h-3 text-gray-700" /> : <ChevronDown className="w-3 h-3 text-gray-700" />
+                        : <ChevronsUpDown className="w-3 h-3 text-gray-400" />}
                     </div>
                   </th>
                 ))}
-                <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-center w-[90px] sticky right-0 z-10"
-                  style={{ color: 'var(--text-subtle)', background: 'var(--bg-elevated)' }}>Actions</th>
+                <th className="px-4 py-3.5 text-xs font-bold uppercase tracking-wider text-center w-[90px] sticky right-0 z-10 bg-gray-50 text-gray-500 whitespace-nowrap">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -1209,34 +1148,30 @@ export default function WorkflowBoard({ leads, onRefresh, syncConfig, activeTab:
                 <tr>
                   <td colSpan={activeCols.length + 3} className="text-center py-16">
                     <div className="flex flex-col items-center gap-3">
-                      <div className="w-14 h-14 rounded-2xl flex items-center justify-center" style={{ background: 'var(--bg-elevated)' }}>
-                        <Search className="w-7 h-7" style={{ color: 'var(--text-subtle)' }} />
+                      <div className="w-14 h-14 rounded-2xl flex items-center justify-center bg-gray-50">
+                        <Search className="w-7 h-7 text-gray-400" />
                       </div>
-                      <p className="text-sm font-medium" style={{ color: 'var(--text-muted)' }}>No leads found</p>
-                      <p className="text-xs" style={{ color: 'var(--text-subtle)' }}>Try adjusting your filters</p>
+                      <p className="text-sm font-medium text-gray-500">No leads found</p>
+                      <p className="text-xs text-gray-400">Try adjusting your filters</p>
                     </div>
                   </td>
                 </tr>
               ) : paged.map((lead, idx) => (
                 <tr key={lead.leadNo}
-                  className="border-b transition-colors cursor-pointer"
-                  style={{
-                    borderColor: 'var(--border-subtle)',
-                    background: idx % 2 === 0 ? 'var(--bg-card)' : 'var(--bg-elevated)',
-                  }}
-                  onMouseEnter={e => (e.currentTarget.style.background = 'rgba(16,185,129,0.06)')}
-                  onMouseLeave={e => (e.currentTarget.style.background = idx % 2 === 0 ? 'var(--bg-card)' : 'var(--bg-elevated)')}
+                  className={`border-b border-gray-100 transition-colors cursor-pointer ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'}`}
+                  onMouseEnter={e => (e.currentTarget.style.background = 'rgba(0,0,0,0.025)')}
+                  onMouseLeave={e => (e.currentTarget.style.background = idx % 2 === 0 ? 'white' : 'rgba(249,250,251,0.3)')}
                 >
-                  <td className="px-4 py-2.5"><StatusBadge lead={lead} /></td>
-                  <td className="px-4 py-2.5"><ProgressBar lead={lead} /></td>
+                  <td className="px-4 py-3"><div className="flex justify-center"><StatusBadge lead={lead} /></div></td>
+                  <td className="px-4 py-3"><div className="flex justify-center"><ProgressBar lead={lead} /></div></td>
                   {activeCols.map(c => (
-                    <td key={c.key} className="px-4 py-2.5 max-w-[200px]">
+                    <td key={c.key} className="px-4 py-3 max-w-[200px]">
                       <CellValue col={c} lead={lead} />
                     </td>
                   ))}
-                  <td className="px-4 py-2.5 text-center sticky right-0 z-5" style={{ background: 'inherit' }}>
+                  <td className="px-4 py-3 text-center sticky right-0 z-5" style={{ background: 'inherit' }}>
                     <button onClick={() => setModal(lead)}
-                      className="h-7 px-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold flex items-center gap-1 mx-auto transition-all shadow-sm cursor-pointer">
+                      className="h-7 px-3 bg-gray-900 hover:bg-gray-800 text-white rounded-lg text-xs font-semibold flex items-center gap-1 mx-auto transition-all shadow-sm cursor-pointer">
                       <Eye className="w-3 h-3" /> View
                     </button>
                   </td>
@@ -1247,18 +1182,16 @@ export default function WorkflowBoard({ leads, onRefresh, syncConfig, activeTab:
         </div>
 
         {/* Pagination */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-5 py-3 border-t"
-          style={{ borderColor: 'var(--border)', background: 'var(--bg-elevated)' }}>
-          <div className="flex items-center gap-3 text-xs flex-wrap" style={{ color: 'var(--text-muted)' }}>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-5 py-3 border-t border-gray-200 bg-gray-50/50">
+          <div className="flex items-center gap-3 text-xs flex-wrap text-gray-500">
             <span>
-              <strong style={{ color: 'var(--text)' }}>{paged.length === 0 ? 0 : (page-1)*pageSize+1}–{Math.min(page*pageSize, filtered.length)}</strong>
+              <strong className="text-gray-900">{paged.length === 0 ? 0 : (page-1)*pageSize+1}–{Math.min(page*pageSize, filtered.length)}</strong>
               {' '}of{' '}
-              <strong style={{ color: 'var(--text)' }}>{filtered.length}</strong>
+              <strong className="text-gray-900">{filtered.length}</strong>
               {' '}leads
             </span>
             <select value={pageSize} onChange={e => { setPageSize(Number(e.target.value)); setPage(1); }}
-              className="h-7 px-2 text-xs rounded-lg border focus:outline-none focus:ring-1 focus:ring-emerald-300 cursor-pointer"
-              style={selectStyle}>
+              className="h-7 px-2 text-xs rounded-lg border border-gray-200 focus:outline-none focus:ring-1 focus:ring-gray-300 cursor-pointer bg-white text-gray-700">
               {[10, 20, 50, 100].map(n => <option key={n} value={n}>{n} / page</option>)}
             </select>
           </div>
@@ -1268,8 +1201,7 @@ export default function WorkflowBoard({ leads, onRefresh, syncConfig, activeTab:
               { label: <ChevronLeft className="w-3.5 h-3.5" />, onClick: () => setPage(p => Math.max(1, p-1)), disabled: page === 1 },
             ].map((btn, i) => (
               <button key={i} onClick={btn.onClick} disabled={btn.disabled}
-                className="h-8 w-8 flex items-center justify-center rounded-lg border transition-all disabled:opacity-40 cursor-pointer text-xs font-bold"
-                style={{ background: 'var(--bg-card)', borderColor: 'var(--border)', color: 'var(--text)' }}>
+                className="h-8 w-8 flex items-center justify-center rounded-lg border border-gray-200 transition-all disabled:opacity-40 cursor-pointer text-xs font-bold bg-white text-gray-700 hover:bg-gray-50">
                 {btn.label}
               </button>
             ))}
@@ -1279,9 +1211,8 @@ export default function WorkflowBoard({ leads, onRefresh, syncConfig, activeTab:
               return (
                 <button key={p} onClick={() => setPage(p)}
                   className={`h-8 min-w-[32px] px-2 rounded-lg text-xs font-semibold cursor-pointer transition-all border ${
-                    p === page ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm' : ''
-                  }`}
-                  style={p !== page ? { background: 'var(--bg-card)', borderColor: 'var(--border)', color: 'var(--text)' } : {}}>
+                    p === page ? 'bg-gray-900 text-white border-gray-900 shadow-sm' : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
+                  }`}>
                   {p}
                 </button>
               );
@@ -1291,8 +1222,7 @@ export default function WorkflowBoard({ leads, onRefresh, syncConfig, activeTab:
               { label: '»', onClick: () => setPage(totalPages), disabled: page === totalPages },
             ].map((btn, i) => (
               <button key={i} onClick={btn.onClick} disabled={btn.disabled}
-                className="h-8 w-8 flex items-center justify-center rounded-lg border transition-all disabled:opacity-40 cursor-pointer text-xs font-bold"
-                style={{ background: 'var(--bg-card)', borderColor: 'var(--border)', color: 'var(--text)' }}>
+                className="h-8 w-8 flex items-center justify-center rounded-lg border border-gray-200 transition-all disabled:opacity-40 cursor-pointer text-xs font-bold bg-white text-gray-700 hover:bg-gray-50">
                 {btn.label}
               </button>
             ))}
